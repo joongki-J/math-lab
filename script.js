@@ -5,12 +5,20 @@
 
 const TOOLS = [
   {
-    title: "삼각함수 그래프 게임",
-    subject: "대수",
-    symbol: "sin",
-    description: "진폭·주기·평행이동을 조절해 제시된 그래프를 직접 완성합니다.",
-    tags: ["삼각함수", "그래프", "게임"],
-    url: "./trig-graph/"
+    title: "경사하강법 시각화 — y = ax",
+    subject: "인공지능 수학",
+    symbol: "∇",
+    description: "산점도와 손실함수를 통해 경사하강법이 최적의 기울기 \(a\)를 찾는 과정을 시각적으로 탐구합니다.",
+    tags: ["경사하강법", "MSE", "최적화"],
+    url: "./gradient-descent-1/"
+  },
+  {
+    title: "경사하강법 시각화 — y = ax + b",
+    subject: "인공지능 수학",
+    symbol: "∇",
+    description: "산점도·추세선·3차원 손실곡면과 학습 경로를 한 화면에서 관찰하며 경사하강법의 원리를 탐구합니다.",
+    tags: ["경사하강법", "MSE", "최적화"],
+    url: "./gradient-descent-2/"
   },
   {
     title: "정적분과 리만합 탐구",
@@ -35,14 +43,6 @@ const TOOLS = [
     description: "반복 규칙이 만들어내는 프랙탈 구조와 자기유사성을 탐구합니다.",
     tags: ["프랙탈", "반복", "도형"],
     url: "./sierpinski/"
-  },
-  {
-    title: "경사하강법 시각화 — y = ax + b",
-    subject: "인공지능 수학",
-    symbol: "∇",
-    description: "산점도·추세선·3차원 손실곡면과 학습 경로를 한 화면에서 관찰하며 경사하강법의 원리를 탐구합니다.",
-    tags: ["경사하강법", "MSE", "최적화"],
-    url: "./gradient-descent-2/"
   },
   {
     title: "퍼셉트론 시뮬레이터",
