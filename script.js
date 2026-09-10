@@ -145,6 +145,44 @@ function updateChips(query) {
     chip.classList.toggle("active", subject === selectedSubject);
   });
 }
+/* ---------- 썸네일 자동 매칭 ---------- */
+
+function toolFolderName(tool) {
+  return tool.url
+    .replace(/^\.?\//, "")
+    .replace(/\/+$/, "")
+    .split("/")
+    .filter(Boolean)
+    .pop();
+}
+
+function setupAutoThumbnail(card, tool) {
+  const img = card.querySelector(".card-thumb");
+  const placeholder = card.querySelector(".media-placeholder");
+
+  const folder = toolFolderName(tool);
+  const extensions = ["jpg", "png", "jpeg", "webp"];
+  let index = 0;
+
+  function tryNext() {
+    if (index >= extensions.length) {
+      img.style.display = "none";
+      placeholder.style.display = "";
+      return;
+    }
+
+    img.src = `./thumbnails/${folder}.${extensions[index++]}`;
+  }
+
+  img.addEventListener("load", () => {
+    img.style.display = "block";
+    placeholder.style.display = "none";
+  });
+
+  img.addEventListener("error", tryNext);
+
+  tryNext();
+}
 
 /* ---------- 카드 ---------- */
 
@@ -168,16 +206,35 @@ function renderTools() {
 
     card.innerHTML = `
       <div class="card-media">
-        <span class="card-num">${String(index + 1).padStart(2, "0")}</span>
-        <svg viewBox="0 0 24 24" width="30" height="30" fill="none"
-             stroke="rgba(21,23,26,.62)" stroke-width="1.6"
-             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="4" width="18" height="16" rx="2.5"></rect>
-          <circle cx="8.6" cy="9.6" r="1.5"></circle>
-          <path d="M4 17l4.8-4.6 3.4 3.2 3-2.6L20 17"></path>
-        </svg>
-        <span class="media-label">${escapeHtml(tool.title)} 화면 캡처</span>
-      </div>
+  <img
+    class="card-thumb"
+    alt="${escapeHtml(tool.title)} 썸네일"
+    style="position:absolute; inset:0; width:100%; height:100%;
+           object-fit:cover; display:none; z-index:0;"
+  >
+
+  <span class="card-num" style="z-index:2">
+    ${String(index + 1).padStart(2, "0")}
+  </span>
+
+  <div class="media-placeholder"
+       style="position:relative; z-index:1;
+              display:grid; place-items:center; gap:10px;">
+
+    <svg viewBox="0 0 24 24" width="30" height="30" fill="none"
+         stroke="rgba(21,23,26,.62)" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round"
+         aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="2.5"></rect>
+      <circle cx="8.6" cy="9.6" r="1.5"></circle>
+      <path d="M4 17l4.8-4.6 3.4 3.2 3-2.6L20 17"></path>
+    </svg>
+
+    <span class="media-label">
+      ${escapeHtml(tool.title)} 화면 캡처
+    </span>
+  </div>
+</div>
       <div class="card-body">
         <span class="subject-label">${escapeHtml(tool.subject)}</span>
         <h3>${escapeHtml(tool.title)}</h3>
@@ -194,7 +251,7 @@ function renderTools() {
         </div>
       </div>
     `;
-
+setupAutoThumbnail(card, tool);
     card.querySelector(".qr-tool").addEventListener("click", () => {
       openQr(tool.title, new URL(tool.url, window.location.href).href);
     });
