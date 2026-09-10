@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시에르핀스키 삼각형</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ---- tokens: light default, dark via media query + data-theme ---- */
+  :root{
+    --bg:#eef1f5;
+    --stage-bg:#e7ebf1;
+    --panel:#ffffff;
+    --panel-2:#f1f3f7;
+    --border:#d9dee7;
+    --border-soft:#e4e8ef;
+    --text:#1a1f2b;
+    --muted:#606b7d;
+    --faint:#9aa4b4;
+    --accent:#0d9488;
+    --accent-weak:rgba(13,148,136,.14);
+    --kept:#232a37;          /* silhouette triangle on light bg */
+    --shadow:0 1px 2px rgba(20,30,50,.06),0 8px 30px rgba(20,30,50,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0c1017;
+      --stage-bg:#090d14;
+      --panel:#141a24;
+      --panel-2:#1a2130;
+      --border:#273143;
+      --border-soft:#1e2634;
+      --text:#e7ebf2;
+      --muted:#8b95a7;
+      --faint:#5b6577;
+      --accent:#2dd4bf;
+      --accent-weak:rgba(45,212,191,.16);
+      --kept:#e3eaf4;        /* silhouette triangle on dark bg */
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 40px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0c1017;
+    --stage-bg:#090d14;
+    --panel:#141a24;
+    --panel-2:#1a2130;
+    --border:#273143;
+    --border-soft:#1e2634;
+    --text:#e7ebf2;
+    --muted:#8b95a7;
+    --faint:#5b6577;
+    --accent:#2dd4bf;
+    --accent-weak:rgba(45,212,191,.16);
+    --kept:#e3eaf4;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 40px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:"IBM Plex Sans KR",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+    min-height:100vh;
+  }
+  .num{font-family:"Space Grotesk","IBM Plex Sans KR",sans-serif;font-feature-settings:"tnum" 1;letter-spacing:-.01em}
+
+  .app{max-width:1120px;margin:0 auto;padding:22px 20px 44px;opacity:0;animation:rise .5s cubic-bezier(.2,.7,.2,1) forwards}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.app{animation:none;opacity:1}}
+
+  /* ---- header ---- */
+  .top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}
+  .brand{display:flex;align-items:center;gap:13px;min-width:0}
+  .mark{width:38px;height:38px;flex:none;display:grid;place-items:center;border:1px solid var(--border);border-radius:11px;background:var(--panel);color:var(--accent)}
+  h1{font-size:1.28rem;font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.2}
+  .sub{margin:1px 0 0;color:var(--muted);font-size:.85rem}
+  .theme-btn{flex:none;width:40px;height:40px;border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:11px;cursor:pointer;display:grid;place-items:center;transition:border-color .15s,color .15s}
+  .theme-btn:hover{color:var(--accent);border-color:var(--accent)}
+  .theme-btn svg{width:19px;height:19px}
+
+  /* ---- layout ---- */
+  .grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr);gap:16px}
+  @media (max-width:820px){.grid{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow)}
+
+  /* ---- stage ---- */
+  .stage{padding:14px;display:flex;flex-direction:column;gap:10px}
+  .canvas-wrap{position:relative;width:100%;aspect-ratio:1.12/1;border-radius:12px;overflow:hidden;background:var(--stage-bg);border:1px solid var(--border-soft)}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .stage-foot{min-height:22px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:.76rem;color:var(--muted)}
+  .legend-item i{width:11px;height:11px;border-radius:3px;flex:none}
+  .selfsim-note{font-size:.8rem;color:var(--muted)}
+  .selfsim-note b{color:var(--accent);font-weight:600}
+
+  /* ---- panel ---- */
+  .panel{display:flex;flex-direction:column;gap:16px}
+  .k-label{font-size:.78rem;color:var(--muted);font-weight:500}
+
+  .step-card{padding:16px 16px 18px}
+  .step-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+  .step-num{font-size:2.5rem;font-weight:700;line-height:1;font-family:"Space Grotesk",sans-serif}
+
+  .slider{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;background:var(--panel-2);outline:none;margin:6px 0 14px}
+  .slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--accent);cursor:pointer;border:3px solid var(--panel);box-shadow:0 0 0 1px var(--accent)}
+  .slider::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;border:3px solid var(--panel);box-shadow:0 0 0 1px var(--accent)}
+  .slider:focus-visible{box-shadow:0 0 0 3px var(--accent-weak)}
+
+  .step-btns{display:flex;align-items:center;gap:10px}
+  .step-btns button{width:40px;height:40px;flex:none;border:1px solid var(--border);background:var(--panel-2);color:var(--text);border-radius:10px;font-size:1.3rem;cursor:pointer;line-height:1;transition:background .12s,border-color .12s}
+  .step-btns button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+  .step-btns button:disabled{opacity:.4;cursor:not-allowed}
+  .ticks{flex:1;display:flex;justify-content:space-between;padding:0 2px}
+  .ticks span{font-size:.72rem;color:var(--faint);cursor:pointer;width:1.4em;text-align:center;border-radius:5px;transition:color .12s}
+  .ticks span:hover{color:var(--accent)}
+  .ticks span.on{color:var(--accent);font-weight:700}
+
+  .toggles{padding:14px;display:flex;flex-direction:column;gap:14px}
+  .seg{display:flex;background:var(--panel-2);border-radius:11px;padding:4px;gap:4px}
+  .seg-btn{flex:1;border:none;background:transparent;color:var(--muted);padding:8px 6px;border-radius:8px;font:inherit;font-size:.88rem;font-weight:500;cursor:pointer;transition:.12s}
+  .seg-btn.active{background:var(--panel);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.12);font-weight:600}
+  .switch{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:.88rem;user-select:none}
+  .switch input{position:absolute;opacity:0;width:0;height:0}
+  .track{width:40px;height:23px;border-radius:23px;background:var(--panel-2);border:1px solid var(--border);position:relative;flex:none;transition:.15s}
+  .track::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:var(--faint);transition:.16s cubic-bezier(.3,.7,.3,1)}
+  .switch input:checked+.track{background:var(--accent);border-color:var(--accent)}
+  .switch input:checked+.track::after{transform:translateX(17px);background:#fff}
+  .switch input:focus-visible+.track{box-shadow:0 0 0 3px var(--accent-weak)}
+
+  .stats{padding:6px 16px 8px}
+  .stat{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--border-soft)}
+  .stat:last-child{border-bottom:none}
+  .stat .lab{font-size:.86rem;color:var(--muted)}
+  .stat .lab small{display:block;font-size:.72rem;color:var(--faint);margin-top:1px}
+  .stat .val{font-size:1.18rem;font-weight:600;text-align:right;white-space:nowrap}
+  .stat .val .unit{font-size:.8rem;color:var(--muted);font-weight:500;margin-left:2px}
+  .stat .val sup{font-size:.62em}
+
+  .area-card{padding:16px}
+  .area-card h3{margin:0 0 3px;font-size:.9rem;font-weight:600}
+  .area-card .cap{margin:0 0 12px;font-size:.78rem;color:var(--muted)}
+  .bars{display:flex;align-items:flex-end;gap:5px;height:74px}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;cursor:pointer}
+  .bar-track{flex:1;width:100%;display:flex;align-items:flex-end}
+  .bar{width:100%;border-radius:3px 3px 1px 1px;background:var(--panel-2);transition:background .15s}
+  .bar-col.past .bar{background:var(--accent);opacity:.4}
+  .bar-col.cur .bar{background:var(--accent)}
+  .bar-lab{font-size:.66rem;color:var(--faint)}
+  .bar-col.cur .bar-lab{color:var(--accent);font-weight:700}
+  .limit-note{margin-top:13px;padding:11px 12px;background:var(--panel-2);border-radius:10px;font-size:.8rem;color:var(--muted);line-height:1.55}
+  .limit-note b{color:var(--text);font-weight:600}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" width="22" height="22"><path d="M12 3.5 21 20H3L12 3.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 11.75 16.5 20h-9L12 11.75Z" fill="currentColor"/></svg>
+      </div>
+      <div>
+        <h1>시에르핀스키 삼각형</h1>
+        <p class="sub">단계마다 가운데 삼각형을 덜어내는 프랙탈</p>
+      </div>
+    </div>
+    <button class="theme-btn" id="themeBtn" aria-label="테마 전환"></button>
+  </header>
+
+  <main class="grid">
+    <section class="stage card">
+      <div class="canvas-wrap" id="wrap"><canvas id="cv"></canvas></div>
+      <div class="stage-foot">
+        <div class="legend" id="legend"></div>
+        <div class="selfsim-note" id="selfNote" hidden>강조된 삼각형은 <b>전체를 1/2로 줄인 똑같은 모양</b>입니다.</div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="card step-card">
+        <div class="step-head">
+          <span class="k-label">단계 (반복 횟수)</span>
+          <span class="step-num num" id="stepNum">3</span>
+        </div>
+        <input type="range" min="0" max="8" value="3" id="slider" class="slider" aria-label="단계 선택">
+        <div class="step-btns">
+          <button id="minus" aria-label="단계 줄이기">−</button>
+          <div class="ticks" id="ticks"></div>
+          <button id="plus" aria-label="단계 늘리기">+</button>
+        </div>
+      </div>
+
+      <div class="card toggles">
+        <div class="seg" role="group" aria-label="보기 방식">
+          <button class="seg-btn active" data-mode="silhouette">실루엣</button>
+          <button class="seg-btn" data-mode="depth">단계별 색</button>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="selfSim">
+          <span class="track" aria-hidden="true"></span>
+          <span>자기 닮음 표시</span>
+        </label>
+      </div>
+
+      <div class="card stats">
+        <div class="stat">
+          <span class="lab">채워진 삼각형 수<small>3<sup>n</sup></small></span>
+          <span class="val num" id="vCount">27</span>
+        </div>
+        <div class="stat">
+          <span class="lab">한 변의 길이<small>처음 삼각형 대비</small></span>
+          <span class="val num" id="vSide">1/8</span>
+        </div>
+        <div class="stat">
+          <span class="lab">남은 넓이<small>(3/4)<sup>n</sup></small></span>
+          <span class="val num" id="vArea">42.19<span class="unit">%</span></span>
+        </div>
+        <div class="stat">
+          <span class="lab">덜어낸 구멍 수<small>누적</small></span>
+          <span class="val num" id="vHoles">13</span>
+        </div>
+      </div>
+
+      <div class="card area-card">
+        <h3>단계별 남은 넓이</h3>
+        <p class="cap">매 단계 넓이가 처음의 3/4로 줄어듭니다.</p>
+        <div class="bars" id="bars"></div>
+        <div class="limit-note">단계가 무한히 커지면 넓이는 <b>0</b>에 가까워지지만, 둘레는 <b>무한히</b> 길어집니다.</div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var cv = document.getElementById("cv");
+  var ctx = cv.getContext("2d");
+  var wrap = document.getElementById("wrap");
+  var MAXN = 8;
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var stepColors = ["#f4b740","#f97316","#ef4444","#ec4899","#a855f7","#6366f1","#3b82f6","#06b6d4"];
+
+  var state = { step: 3, mode: "silhouette", selfSim: false };
+  var geom = null;      // {A,B,C}
+  var holes = [];       // {level, pts:[3], cx, cy}
+  var anim = { active:false, from:0, level:0, t:1 };
+
+  function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+  function mid(a,b){ return {x:(a.x+b.x)/2, y:(a.y+b.y)/2}; }
+  function easeOut(t){ return 1-Math.pow(1-t,3); }
+
+  /* ---------- geometry & hole list ---------- */
+  function buildGeometry(){
+    var W = wrap.clientWidth, H = wrap.clientHeight;
+    var pad = Math.max(14, W*0.045);
+    var aw = W - 2*pad, ah = H - 2*pad;
+    var b = Math.min(aw, ah * 2/Math.sqrt(3));
+    var h = b*Math.sqrt(3)/2;
+    var cx = W/2, cy = H/2;
+    geom = {
+      A:{x:cx,       y:cy - h/2},
+      B:{x:cx - b/2, y:cy + h/2},
+      C:{x:cx + b/2, y:cy + h/2}
+    };
+  }
+
+  function buildHoles(){
+    holes = [];
+    var n = state.step;
+    (function rec(p1,p2,p3,level){
+      if(level > n) return;
+      var m12 = mid(p1,p2), m23 = mid(p2,p3), m31 = mid(p3,p1);
+      holes.push({ level:level, pts:[m12,m23,m31], cx:(m12.x+m23.x+m31.x)/3, cy:(m12.y+m23.y+m31.y)/3 });
+      rec(p1,m12,m31,level+1);
+      rec(m12,p2,m23,level+1);
+      rec(m31,m23,p3,level+1);
+    })(geom.A, geom.B, geom.C, 1);
+  }
+
+  /* ---------- drawing ---------- */
+  function poly(pts, scale, ox, oy){
+    ctx.beginPath();
+    for(var i=0;i<pts.length;i++){
+      var x = ox + (pts[i].x-ox)*scale;
+      var y = oy + (pts[i].y-oy)*scale;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+  }
+
+  function render(){
+    var W = wrap.clientWidth, H = wrap.clientHeight;
+    var dpr = Math.min(window.devicePixelRatio||1, 2);
+    if(cv.width !== Math.round(W*dpr) || cv.height !== Math.round(H*dpr)){
+      cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
+    }
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,W,H);
+
+    var stageBg = cssVar("--stage-bg");
+    var depth = state.mode === "depth";
+    var keptCol = depth ? cssVar("--panel-2") : cssVar("--kept");
+    ctx.fillStyle = stageBg; ctx.fillRect(0,0,W,H);
+
+    // kept region = full triangle
+    ctx.fillStyle = keptCol;
+    poly([geom.A,geom.B,geom.C],1,0,0);
+    ctx.fill();
+
+    // holes
+    for(var i=0;i<holes.length;i++){
+      var ho = holes[i];
+      var s = 1;
+      if(anim.active && ho.level === anim.level) s = anim.t;
+      if(s <= 0) continue;
+      ctx.fillStyle = depth ? stepColors[(ho.level-1)%stepColors.length] : stageBg;
+      poly(ho.pts, s, ho.cx, ho.cy);
+      ctx.fill();
+    }
+
+    if(state.selfSim && state.step >= 0){
+      var sub = [geom.A, mid(geom.A,geom.B), mid(geom.A,geom.C)];
+      ctx.fillStyle = cssVar("--accent-weak");
+      poly(sub,1,0,0); ctx.fill();
+      ctx.strokeStyle = cssVar("--accent");
+      ctx.lineWidth = 2.2; ctx.lineJoin="round";
+      ctx.setLineDash([7,5]);
+      poly(sub,1,0,0); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  function animateTo(newStep, oldStep){
+    buildHoles();
+    if(reduceMotion || newStep <= oldStep || newStep > 6){
+      anim.active = false; render(); return;
+    }
+    anim.active = true; anim.level = newStep; anim.t = 0;
+    var start = performance.now();
+    (function frame(now){
+      var p = Math.min(1,(now-start)/360);
+      anim.t = easeOut(p);
+      render();
+      if(p < 1) requestAnimationFrame(frame);
+      else { anim.active = false; render(); }
+    })(start);
+  }
+
+  /* ---------- stats ---------- */
+  function fmt(n){ return n.toLocaleString("en-US"); }
+  function updateStats(){
+    var n = state.step;
+    var count = Math.pow(3,n);
+    document.getElementById("vCount").textContent = fmt(count);
+    document.getElementById("vSide").textContent = n===0 ? "1" : "1/"+fmt(Math.pow(2,n));
+    var area = Math.pow(3/4,n)*100;
+    document.getElementById("vArea").innerHTML = area.toFixed(2)+'<span class="unit">%</span>';
+    var holesTotal = (Math.pow(3,n)-1)/2;
+    document.getElementById("vHoles").textContent = fmt(holesTotal);
+    // legend
+    var lg = document.getElementById("legend");
+    if(state.mode === "depth" && n>0){
+      var html="";
+      for(var k=1;k<=n;k++){
+        html += '<span class="legend-item"><i style="background:'+stepColors[(k-1)%stepColors.length]+'"></i>'+k+'단계</span>';
+      }
+      lg.innerHTML = html;
+    } else { lg.innerHTML = ""; }
+    document.getElementById("selfNote").hidden = !state.selfSim;
+    // bars active state
+    document.querySelectorAll(".bar-col").forEach(function(c){
+      var k = +c.dataset.k;
+      c.classList.toggle("cur", k===n);
+      c.classList.toggle("past", k<n);
+    });
+    // ticks
+    document.querySelectorAll(".ticks span").forEach(function(s){
+      s.classList.toggle("on", +s.dataset.k===n);
+    });
+    document.getElementById("stepNum").textContent = n;
+    document.getElementById("slider").value = n;
+    document.getElementById("minus").disabled = n<=0;
+    document.getElementById("plus").disabled = n>=MAXN;
+  }
+
+  /* ---------- setStep ---------- */
+  function setStep(n, animate){
+    n = Math.max(0, Math.min(MAXN, n));
+    var old = state.step;
+    if(n===old && animate!=="force"){ return; }
+    state.step = n;
+    updateStats();
+    if(animate==="force" || old===n){ buildHoles(); anim.active=false; render(); }
+    else animateTo(n, old);
+  }
+
+  /* ---------- build static UI ---------- */
+  (function(){
+    var ticks="";
+    for(var k=0;k<=MAXN;k++) ticks += '<span data-k="'+k+'">'+k+'</span>';
+    document.getElementById("ticks").innerHTML = ticks;
+    var bars="";
+    for(var k=0;k<=MAXN;k++){
+      var hpct = Math.pow(3/4,k)*100;
+      bars += '<div class="bar-col" data-k="'+k+'"><div class="bar-track"><div class="bar" style="height:'+hpct.toFixed(1)+'%"></div></div><span class="bar-lab">'+k+'</span></div>';
+    }
+    document.getElementById("bars").innerHTML = bars;
+  })();
+
+  /* ---------- events ---------- */
+  document.getElementById("slider").addEventListener("input", function(e){ setStep(+e.target.value); });
+  document.getElementById("minus").addEventListener("click", function(){ setStep(state.step-1); });
+  document.getElementById("plus").addEventListener("click", function(){ setStep(state.step+1); });
+  document.getElementById("ticks").addEventListener("click", function(e){
+    if(e.target.dataset.k!==undefined) setStep(+e.target.dataset.k);
+  });
+  document.getElementById("bars").addEventListener("click", function(e){
+    var col = e.target.closest(".bar-col"); if(col) setStep(+col.dataset.k);
+  });
+  document.querySelectorAll(".seg-btn").forEach(function(b){
+    b.addEventListener("click", function(){
+      document.querySelectorAll(".seg-btn").forEach(function(x){x.classList.remove("active")});
+      b.classList.add("active");
+      state.mode = b.dataset.mode;
+      updateStats(); anim.active=false; render();
+    });
+  });
+  document.getElementById("selfSim").addEventListener("change", function(e){
+    state.selfSim = e.target.checked; updateStats(); render();
+  });
+  document.addEventListener("keydown", function(e){
+    if(e.key==="ArrowRight" || e.key==="ArrowUp"){ setStep(state.step+1); e.preventDefault(); }
+    else if(e.key==="ArrowLeft" || e.key==="ArrowDown"){ setStep(state.step-1); e.preventDefault(); }
+  });
+
+  var ro = new ResizeObserver(function(){ buildGeometry(); buildHoles(); render(); });
+  ro.observe(wrap);
+
+  /* ---------- theme ---------- */
+  function effectiveTheme(){
+    var attr = document.documentElement.getAttribute("data-theme");
+    if(attr) return attr;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark":"light";
+  }
+  var sunmoon = {
+    dark:'<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.6"/><path d="M12 2.5v2.2M12 19.3v2.2M21.5 12h-2.2M4.7 12H2.5M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6M18.4 18.4l-1.6-1.6M7.2 7.2 5.6 5.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+    light:'<svg viewBox="0 0 24 24" fill="none"><path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>'
+  };
+  function refreshThemeBtn(){
+    // show icon of the theme you'd switch TO
+    var cur = effectiveTheme();
+    document.getElementById("themeBtn").innerHTML = cur==="dark" ? sunmoon.light : sunmoon.dark;
+  }
+  document.getElementById("themeBtn").addEventListener("click", function(){
+    var next = effectiveTheme()==="dark" ? "light":"dark";
+    document.documentElement.setAttribute("data-theme", next);
+    refreshThemeBtn();
+    requestAnimationFrame(render);
+  });
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function(){
+    if(!document.documentElement.getAttribute("data-theme")){ refreshThemeBtn(); render(); }
+  });
+
+  /* ---------- init ---------- */
+  refreshThemeBtn();
+  buildGeometry(); buildHoles(); updateStats(); render();
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+})();
+</script>
+</body>
+</html>
