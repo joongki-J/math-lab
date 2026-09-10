@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>경사하강법 시각화 — y = ax</title>
+  <style>
+
+    :root{
+      --bg:#f3f6fa;
+      --panel:#ffffff;
+      --line:#d8dee8;
+      --text:#172033;
+      --muted:#667085;
+      --accent:#2563eb;
+      --accent-soft:#dbeafe;
+      --danger:#dc2626;
+      --ok:#059669;
+      --shadow:0 5px 18px rgba(16,24,40,.08);
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    html,body{width:100%;height:100%}
+    body{
+      margin:0;
+      overflow:hidden;
+      font-family:Inter, Pretendard, "Noto Sans KR", Arial, sans-serif;
+      color:var(--text);
+      background:var(--bg);
+    }
+    button,input{font:inherit}
+    .app{
+      width:auto;
+      height:100vh;
+      padding:9px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .topbar{
+      min-height:48px;
+      display:flex;
+      gap:14px;
+      justify-content:space-between;
+      align-items:center;
+      padding:0 4px;
+    }
+    .title-row{display:flex;align-items:baseline;gap:12px;min-width:0}
+    h1{
+      font-size:clamp(18px,1.35vw,25px);
+      margin:0;
+      white-space:nowrap;
+    }
+    .subtitle{
+      margin:0;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.4;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:7px;
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:999px;
+      padding:7px 11px;
+      box-shadow:var(--shadow);
+      white-space:nowrap;
+      font-size:12px;
+      font-weight:750;
+    }
+    .back-link{
+      display:inline-flex;
+      align-items:center;
+      flex:0 0 auto;
+      color:var(--accent);
+      font-size:13px;
+      font-weight:850;
+      text-decoration:none;
+      white-space:nowrap;
+    }
+    .back-link:hover{text-decoration:underline}
+    .dot{width:9px;height:9px;border-radius:50%;background:var(--ok)}
+    .workspace{
+      flex:1;
+      min-height:0;
+      display:grid;
+      grid-template-columns:minmax(250px,.78fr) minmax(390px,1.35fr) minmax(390px,1.35fr) minmax(330px,1.02fr);
+      gap:9px;
+    }
+    .panel{
+      min-width:0;
+      min-height:0;
+      display:flex;
+      flex-direction:column;
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .panel-head{
+      flex:0 0 auto;
+      min-height:64px;
+      padding:11px 13px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:9px;
+    }
+    .panel-title{font-weight:850;font-size:15px;line-height:1.25}
+    .panel-desc{color:var(--muted);font-size:11px;margin-top:4px;line-height:1.35}
+    .sentence{display:block}
+    .sentence + .sentence{margin-top:1px}
+    .panel-body{
+      flex:1;
+      min-height:0;
+      padding:10px;
+    }
+    .chart-panel .panel-body{display:flex;padding:8px}
+    .chart-wrap{width:100%;height:100%;min-height:0}
+    svg{
+      width:100%;
+      height:100%;
+      display:block;
+      background:#fff;
+      border-radius:10px;
+      overflow:hidden;
+      user-select:none;
+      -webkit-user-select:none;
+      touch-action:none;
+    }
+    svg.chart-interactive{cursor:grab}
+    svg.chart-interactive.dragging{cursor:grabbing}
+    .chart-head-actions{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap:7px;
+      min-width:0;
+    }
+    .view-reset{
+      padding:5px 8px;
+      font-size:10px;
+      border-radius:8px;
+    }
+    .legend{
+      display:flex;
+      justify-content:flex-end;
+      align-items:center;
+      gap:9px;
+      flex-wrap:wrap;
+      font-size:10px;
+      color:var(--muted);
+    }
+    .legend-item{display:flex;align-items:center;gap:4px;white-space:nowrap}
+    .swatch{width:15px;height:3px;border-radius:3px;background:#111827}
+    .swatch.blue{background:#2563eb}
+    .swatch.red{background:#ef4444}
+    .swatch.trace{background:#f43f5e;opacity:.9}
+    .swatch.green{background:#16a34a}
+    .data-panel .panel-head{display:block}
+    .data-panel .panel-body{display:flex;flex-direction:column;min-height:0}
+    .toolbar{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:5px;
+      margin-top:9px;
+    }
+    .btn{
+      border:1px solid var(--line);
+      background:white;
+      padding:8px 8px;
+      border-radius:9px;
+      cursor:pointer;
+      font-weight:750;
+      font-size:12px;
+      transition:.15s ease;
+      white-space:nowrap;
+    }
+    .btn:hover{transform:translateY(-1px);border-color:#aeb7c4}
+    .btn.primary{background:var(--accent);color:white;border-color:var(--accent)}
+    .btn.danger{color:var(--danger)}
+    .icon-btn{width:28px;height:28px;padding:0;border-radius:8px}
+    .table-wrap{
+      flex:1;
+      min-height:0;
+      overflow:auto;
+      border:1px solid var(--line);
+      border-radius:10px;
+    }
+    table{width:100%;border-collapse:collapse;table-layout:fixed}
+    th,td{
+      padding:7px 5px;
+      border-bottom:1px solid #edf0f3;
+      text-align:center;
+      font-size:11px;
+    }
+    th{
+      position:sticky;
+      top:0;
+      background:#f8fafc;
+      z-index:1;
+      font-weight:800;
+    }
+    th:first-child{width:38px}
+    th:last-child{width:36px}
+    td input{
+      width:100%;
+      min-width:0;
+      padding:8px 7px;
+      border:1px solid var(--line);
+      border-radius:8px;
+      text-align:right;
+      background:white;
+      font-size:12px;
+    }
+    td input:focus,.control input:focus{
+      outline:3px solid var(--accent-soft);
+      border-color:var(--accent);
+    }
+    .settings-panel .panel-body{
+      overflow:auto;
+      padding:11px;
+    }
+    .controls{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:9px;
+    }
+    .control{display:flex;flex-direction:column;gap:5px}
+    .control label{font-size:11px;color:var(--muted);font-weight:800}
+    .control input{
+      width:100%;
+      padding:9px 10px;
+      border:1px solid var(--line);
+      border-radius:9px;
+      font-weight:700;
+    }
+    .speed-control label{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+    }
+    .speed-value{
+      color:var(--accent);
+      font-size:10.5px;
+      font-weight:850;
+      font-variant-numeric:tabular-nums;
+      white-space:nowrap;
+    }
+    .control input[type="range"]{
+      padding:0;
+      height:22px;
+      border:0;
+      border-radius:0;
+      accent-color:var(--accent);
+      cursor:pointer;
+      direction:rtl;
+      background:transparent;
+    }
+    .control input[type="range"]:focus{
+      outline:3px solid var(--accent-soft);
+      outline-offset:3px;
+    }
+    .speed-scale{
+      display:flex;
+      justify-content:space-between;
+      color:var(--muted);
+      font-size:9.5px;
+      font-weight:750;
+      margin-top:-4px;
+    }
+    .checkbox-control{
+      justify-content:center;
+      min-height:58px;
+      padding:8px 10px;
+      border:1px solid var(--line);
+      border-radius:9px;
+      background:#f8fafc;
+    }
+    .checkbox-control label{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      color:var(--text);
+      cursor:pointer;
+      font-size:11px;
+    }
+    .checkbox-control input{
+      width:17px;
+      height:17px;
+      padding:0;
+      accent-color:var(--accent);
+      cursor:pointer;
+    }
+    .control input:disabled{background:#eef2f6;color:#98a2b3;cursor:not-allowed}
+    .actions{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:6px;
+      margin-top:10px;
+    }
+    .actions .btn{padding:9px 5px}
+    .metrics{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:7px;
+      margin-top:10px;
+    }
+    .metric{
+      background:#f8fafc;
+      border:1px solid #e7ebf0;
+      border-radius:10px;
+      padding:8px 9px;
+      min-width:0;
+    }
+    .metric .label{color:var(--muted);font-size:10px;font-weight:800;margin-bottom:3px}
+    .metric .value{
+      font-size:15px;
+      font-weight:850;
+      font-variant-numeric:tabular-nums;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .formula{
+      margin-top:9px;
+      background:#0f172a;
+      color:#e2e8f0;
+      border-radius:10px;
+      padding:9px 10px;
+      line-height:1.55;
+      font-size:12px;
+      font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+      overflow:auto;
+    }
+    .history-wrap{
+      max-height:190px;
+      overflow:auto;
+      border:1px solid var(--line);
+      border-radius:10px;
+      margin-top:10px;
+      background:#fff;
+    }
+    .history-title{
+      position:sticky;
+      top:0;
+      z-index:2;
+      padding:7px 9px;
+      background:#f8fafc;
+      border-bottom:1px solid #edf0f3;
+      font-size:10.8px;
+      color:var(--muted);
+      font-weight:850;
+    }
+    .history-wrap table{table-layout:fixed}
+    .history-wrap th,.history-wrap td{font-size:10.8px;padding:6px 4px}
+    .history-wrap th{top:28px}
+    .status{
+      margin-top:8px;
+      min-height:19px;
+      font-size:11px;
+      line-height:1.4;
+      font-weight:750;
+      color:var(--muted);
+    }
+    .status.error{color:var(--danger)}
+    .status.ok{color:var(--ok)}
+    .note{
+      margin-top:7px;
+      padding:8px 9px;
+      border-radius:9px;
+      background:#fff7ed;
+      border:1px solid #fed7aa;
+      color:#9a3412;
+      font-size:10.5px;
+      line-height:1.45;
+    }
+    @media (max-width:1350px){
+      body{overflow-x:hidden;overflow-y:auto}
+      .app{height:auto;min-height:100vh}
+      .workspace{
+        grid-template-columns:minmax(280px,.8fr) minmax(480px,1.4fr);
+        grid-auto-rows:minmax(570px,calc(50vh - 10px));
+      }
+      .settings-panel,.loss-panel{grid-column:auto}
+      .subtitle{white-space:normal}
+    }
+    @media (max-width:820px){
+      .workspace{grid-template-columns:1fr;grid-auto-rows:minmax(540px,auto)}
+      .topbar{align-items:flex-start}
+      .title-row{display:block}
+      .subtitle{margin-top:4px}
+      .badge{display:none}
+    }
+    @media (max-width:520px){
+      .app{padding:6px}
+      .controls{grid-template-columns:1fr}
+      .actions{grid-template-columns:repeat(2,1fr)}
+      .panel-head{min-height:auto}
+    }
+
+
+    /* ===== 중기쌤의 수학 실험실 테마 ===== */
+    :root{
+      --bg:#f2f0e9;
+      --panel:#fbf9f3;
+      --panel-strong:#ffffff;
+      --line:#d8d2c7;
+      --text:#15171a;
+      --muted:#6b6f74;
+      --accent:#ff5a30;
+      --accent-soft:#ffe3da;
+      --lime:#d9f24f;
+      --lime-soft:#eef7b2;
+      --danger:#c74432;
+      --ok:#32825a;
+      --shadow:0 10px 28px rgba(21,23,26,.055);
+      --radius:16px;
+    }
+
+    body{
+      background:
+        linear-gradient(rgba(21,23,26,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(21,23,26,.035) 1px, transparent 1px),
+        var(--bg);
+      background-size:34px 34px;
+      color:var(--text);
+      font-family:Pretendard,"Apple SD Gothic Neo","Noto Sans KR",-apple-system,BlinkMacSystemFont,sans-serif;
+      letter-spacing:-.015em;
+    }
+
+    .app{width:100vw;padding:12px;gap:10px}
+
+    .topbar{
+      min-height:72px;
+      padding:10px 14px;
+      background:rgba(242,240,233,.90);
+      border:1px solid var(--line);
+      border-radius:18px;
+      backdrop-filter:blur(14px);
+      box-shadow:none;
+    }
+
+    .brand-area{display:flex;align-items:center;gap:18px;min-width:0}
+    .home-link{
+      display:flex;align-items:center;gap:10px;flex:none;
+      color:var(--text);text-decoration:none;
+      padding:7px 10px 7px 8px;border-radius:12px;
+      transition:background .18s ease;
+    }
+    .home-link:hover{background:#e7e3d9}
+    .home-arrow{
+      width:31px;height:31px;border:1px solid #c9c4b8;border-radius:50%;
+      display:grid;place-items:center;font-size:16px;line-height:1;background:#fbf9f3;
+    }
+    .brand-copy{display:block;line-height:1.15}
+    .brand-copy strong{display:block;font-size:14px;font-weight:800;letter-spacing:-.035em}
+    .brand-copy small{
+      display:block;margin-top:4px;color:#8a8d90;
+      font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+      font-size:7.5px;letter-spacing:.13em;white-space:nowrap;
+    }
+    .top-divider{width:1px;height:34px;background:#d3cec3;flex:none}
+
+    .title-row{display:block;min-width:0}
+    .eyebrow{
+      display:flex;align-items:center;gap:7px;margin-bottom:4px;
+      color:#7b7770;font-size:10px;font-weight:750;white-space:nowrap;
+    }
+    .eyebrow span{display:block;width:18px;height:2px;background:var(--accent)}
+
+    h1{
+      font-size:clamp(18px,1.25vw,24px);
+      font-weight:800;letter-spacing:-.04em;white-space:nowrap;
+    }
+    h1 em{
+      font-style:normal;font-weight:500;
+      background:linear-gradient(transparent 60%,var(--lime) 0);
+      padding:0 .04em;
+    }
+    .subtitle{margin-top:4px;color:#666b6f;font-size:11.5px}
+    .badge{
+      background:#15171a;color:#fff;border:0;box-shadow:none;
+      padding:8px 12px;font-weight:700;
+    }
+    .dot{background:#73c48f}
+
+    .workspace{gap:10px}
+    .panel{
+      background:rgba(251,249,243,.96);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+    }
+    .panel-head{
+      background:rgba(247,244,236,.92);
+      border-bottom:1px solid var(--line);
+      padding:12px 14px;
+    }
+    .panel-title{
+      font-size:15px;font-weight:800;letter-spacing:-.025em;
+      position:relative;padding-left:10px;
+    }
+    .panel-title::before{
+      content:"";position:absolute;left:0;top:.15em;bottom:.15em;
+      width:3px;border-radius:3px;background:var(--accent);
+    }
+    .panel-desc{color:#74716b}
+    .panel-body{background:transparent}
+    .chart-panel .panel-body{padding:9px}
+    .chart-wrap{background:#fff;border-radius:12px;border:1px solid #e3ded4;overflow:hidden}
+    svg{border-radius:11px}
+
+    .btn{
+      border:1px solid #c9c4b8;background:#fbf9f3;color:#15171a;
+      border-radius:999px;font-weight:700;box-shadow:none;
+      transition:background .15s ease,border-color .15s ease,transform .15s ease;
+    }
+    .btn:hover{transform:translateY(-1px);border-color:#15171a;background:#f2efe6}
+    .btn.primary{background:#15171a;color:#fff;border-color:#15171a}
+    .btn.primary:hover{background:#2b2e31}
+    .btn.danger{color:#a73b2c}
+    .view-reset{background:#fff}
+
+    .table-wrap,.history-wrap{
+      border:1px solid var(--line);border-radius:12px;background:#fff;
+    }
+    .history-title{background:#f3f0e8;border-bottom:1px solid var(--line);color:#77736d}
+    th{background:#f3f0e8;color:#555a5e;border-bottom:1px solid var(--line)}
+    th,td{border-bottom-color:#eee9df}
+    td input,.control input{
+      border:1px solid #d3cec3;background:#fff;color:#15171a;border-radius:10px;
+    }
+    td input:focus,.control input:focus{
+      outline:3px solid rgba(217,242,79,.42);border-color:#9aa64b;
+    }
+
+    .checkbox-control{
+      border:1px solid #d8d2c7;background:#f4f1e9;border-radius:12px;
+    }
+    .checkbox-control input,.control input[type="range"]{accent-color:#15171a}
+    .speed-value{color:#e55331}
+
+    .metric{
+      background:#f4f1e9;border:1px solid #ddd7cc;border-radius:11px;
+    }
+    .metric .label{color:#77736d}
+    .metric .value{color:#15171a}
+
+    .formula{
+      background:#15171a;color:#f6f2e9;border-radius:12px;
+      border:1px solid #15171a;
+    }
+    .note{
+      background:#f7f4dc;border:1px solid #ddd68a;color:#625d28;border-radius:11px;
+    }
+    .status.ok{color:#32724f}.status.error{color:#b44634}
+
+    .swatch.blue{background:#3477c9}
+    .swatch.red{background:#e45a43}
+    .swatch.trace{background:#9a76c7;opacity:.75}
+    .swatch.green{background:#4b9367}
+
+    @media (max-width:1080px){
+      .brand-copy small{display:none}
+      .brand-copy strong{font-size:13px}
+      .top-divider{height:28px}
+    }
+    @media (max-width:820px){
+      .topbar{align-items:stretch;gap:9px}
+      .brand-area{align-items:flex-start}
+      .home-link{padding-left:2px}
+      .top-divider{display:none}
+      .brand-copy{display:none}
+      .title-row{flex:1}
+      h1{white-space:normal}
+      .eyebrow{white-space:normal}
+    }
+    @media (max-width:520px){
+      .app{padding:7px}
+      .topbar{border-radius:14px;padding:9px 10px}
+      .home-arrow{width:34px;height:34px}
+      h1{font-size:20px;line-height:1.25}
+      h1 em{display:inline-block}
+      .subtitle{font-size:11px;white-space:normal}
+      .panel{border-radius:14px}
+      .panel-head{padding:12px}
+      .btn{min-height:40px}
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <div class="brand-area">
+      <a class="home-link" href="../" aria-label="중기쌤의 수학 실험실 메인으로">
+        <span class="home-arrow">←</span>
+        <span class="brand-copy">
+          <strong>중기쌤의 수학 실험실</strong>
+          <small>MATHEMATICS LABORATORY</small>
+        </span>
+      </a>
+      <span class="top-divider" aria-hidden="true"></span>
+      <div class="title-row">
+        <div class="eyebrow"><span></span>인공지능 수학 · 최적화</div>
+        <h1>경사하강법 시각화 <em>y = ax</em></h1>
+        <p class="subtitle">자료·추세선·손실함수·학습 경로를 한 화면에서 관찰합니다.</p>
+      </div>
+    </div>
+    <div class="badge"><span class="dot" id="runDot"></span><span id="runLabel">준비됨</span></div>
+  </div>
+
+  <section class="workspace">
+    <article class="panel data-panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">① 산점도 자료 입력</div>
+          <div class="panel-desc"><span class="sentence">x좌표와 y좌표를 직접 수정할 수 있습니다.</span><span class="sentence">스프레드시트의 두 열을 복사한 뒤 첫 x좌표 셀에 붙여넣으세요.</span></div>
+        </div>
+        <div class="toolbar">
+          <button class="btn" id="addRowBtn">+ 행 추가</button>
+          <button class="btn" id="sampleBtn">예시 자료</button>
+          <button class="btn danger" id="clearBtn">전체 삭제</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>번호</th><th>x좌표</th><th>y좌표</th><th>삭제</th></tr>
+            </thead>
+            <tbody id="dataBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </article>
+
+    <article class="panel chart-panel scatter-panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">② 산점도와 추세선</div>
+          <div class="panel-desc"><span class="sentence">현재 기울기: y = <span id="lineSlopeLabel">1.000</span>x입니다.</span><span class="sentence">휠 확대/축소·드래그 이동이 가능합니다.</span></div>
+        </div>
+        <div class="chart-head-actions">
+          <div class="legend">
+            <span class="legend-item"><span class="swatch blue"></span>자료</span>
+            <span class="legend-item"><span class="swatch trace"></span>추세선 자취</span>
+            <span class="legend-item"><span class="swatch red"></span>현재</span>
+            <span class="legend-item"><span class="swatch green"></span>최적</span>
+          </div>
+          <button class="btn view-reset" id="scatterResetView" title="산점도 좌표 범위를 처음 상태로 되돌립니다.">보기 초기화</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap"><svg id="scatterSvg" class="chart-interactive" viewBox="0 0 560 900" aria-label="산점도와 추세선"></svg></div>
+      </div>
+    </article>
+
+    <article class="panel chart-panel loss-panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">③ 손실함수와 경사하강 경로</div>
+          <div class="panel-desc"><span class="sentence">점 (a, L(a))가 최솟값을 향해 이동합니다.</span><span class="sentence">휠 확대/축소·드래그 이동이 가능합니다.</span></div>
+        </div>
+        <div class="chart-head-actions">
+          <div class="legend">
+            <span class="legend-item"><span class="swatch"></span>L(a)</span>
+            <span class="legend-item"><span class="swatch red"></span>이동 경로</span>
+          </div>
+          <button class="btn view-reset" id="lossResetView" title="손실함수 좌표 범위를 처음 상태로 되돌립니다.">보기 초기화</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap"><svg id="lossSvg" class="chart-interactive" viewBox="0 0 560 900" aria-label="손실함수와 경사하강 경로"></svg></div>
+      </div>
+    </article>
+
+    <article class="panel settings-panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">④ 경사하강법 설정</div>
+          <div class="panel-desc"><span class="sentence">학습률과 a의 초깃값을 바꾸어 수렴·진동·발산을 비교합니다.</span></div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="controls">
+          <div class="control">
+            <label for="learningRate">학습률 η</label>
+            <input id="learningRate" type="number" value="0.125" min="0.000001" step="0.01">
+          </div>
+          <div class="control">
+            <label for="initialA">a의 초깃값</label>
+            <input id="initialA" type="number" value="2" step="0.1">
+          </div>
+          <div class="control">
+            <label for="maxIter">최대 반복 횟수</label>
+            <input id="maxIter" type="number" value="40" min="1" max="500" step="1">
+          </div>
+          <div class="control speed-control">
+            <label for="speed"><span>재생 속도</span><span class="speed-value" id="speedValue">빠름 · 100ms</span></label>
+            <input id="speed" type="range" value="100" min="40" max="1200" step="10" aria-label="재생 속도 조절">
+            <div class="speed-scale"><span>느리게</span><span>빠르게</span></div>
+          </div>
+          <div class="control">
+            <label for="epsilon">수렴 기준 ε</label>
+            <input id="epsilon" type="number" value="0.0001" min="0.000000000001" step="0.0001" aria-label="수렴 기준 엡실론">
+          </div>
+          <div class="control checkbox-control">
+            <label for="earlyStop"><input id="earlyStop" type="checkbox" checked> 수렴 시 조기 종료</label>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="resetBtn">↺ 초기화</button>
+          <button class="btn" id="stepBtn">한 단계</button>
+          <button class="btn primary" id="playBtn">▶ 재생</button>
+          <button class="btn" id="toOptimumBtn">최적값 보기</button>
+        </div>
+
+        <div class="metrics">
+          <div class="metric"><div class="label">반복 횟수</div><div class="value" id="iterValue">0</div></div>
+          <div class="metric"><div class="label">현재 a</div><div class="value" id="aValue">1.0000</div></div>
+          <div class="metric"><div class="label">현재 L(a)</div><div class="value" id="lossValue">-</div></div>
+          <div class="metric"><div class="label">현재 L′(a)</div><div class="value" id="gradValue">-</div></div>
+          <div class="metric"><div class="label">최적 a*</div><div class="value" id="optAValue">-</div></div>
+          <div class="metric"><div class="label">최소 손실</div><div class="value" id="minLossValue">-</div></div>
+        </div>
+
+        <div class="formula" id="formulaBox"></div>
+        <div class="history-wrap" aria-label="a값 업데이트 기록">
+          <div class="history-title">a값 업데이트 기록</div>
+          <table>
+            <thead><tr><th>k</th><th>aₖ</th><th>L′(aₖ)</th><th>aₖ₊₁</th></tr></thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+        <div class="status" id="statusBox"></div>
+        <div class="note">
+          <span class="sentence">손실함수는 <b>MSE = (1/n)Σ(yᵢ − axᵢ)²</b>입니다.</span><span class="sentence">그래프 위에서 휠로 확대·축소하고 드래그로 이동할 수 있습니다.</span><span class="sentence">조기 종료를 사용하면 <b>|L′(a)| ≤ ε</b>일 때 멈춥니다.</span><span class="sentence">a값 업데이트 기록은 아래 표에 누적됩니다.</span>
+        </div>
+      </div>
+    </article>
+  </section>
+</div>
+
+<script>
+(() => {
+  const NS = "http://www.w3.org/2000/svg";
+  const $ = (id) => document.getElementById(id);
+
+  const state = {
+    data: [
+      {x:NaN,y:NaN}
+    ],
+    a: 2,
+    iteration: 0,
+    history: [],
+    timer: null,
+    playing: false,
+    previewOptimum: false,
+    view: null,
+    baseView: null,
+    drag: null
+  };
+
+  const els = {
+    dataBody:$("dataBody"),
+    scatter:$("scatterSvg"),
+    loss:$("lossSvg"),
+    lr:$("learningRate"),
+    initialA:$("initialA"),
+    maxIter:$("maxIter"),
+    speed:$("speed"),
+    speedValue:$("speedValue"),
+    epsilon:$("epsilon"),
+    earlyStop:$("earlyStop"),
+    play:$("playBtn"),
+    historyBody:$("historyBody"),
+    status:$("statusBox"),
+    runDot:$("runDot"),
+    runLabel:$("runLabel")
+  };
+
+  function finiteData(){
+    return state.data.filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+  }
+
+  function coeffs(){
+    const d = finiteData();
+    const n = d.length;
+    if(!n) return {A:0,B:0,C:0,n:0};
+    let sx2=0, sxy=0, sy2=0;
+    d.forEach(({x,y}) => {
+      sx2 += x*x;
+      sxy += x*y;
+      sy2 += y*y;
+    });
+    return {A:sx2/n, B:-2*sxy/n, C:sy2/n, n};
+  }
+
+  function loss(a){
+    const {A,B,C,n} = coeffs();
+    return n ? A*a*a + B*a + C : NaN;
+  }
+
+  function grad(a){
+    const {A,B,n} = coeffs();
+    return n ? 2*A*a + B : NaN;
+  }
+
+  function optimum(){
+    const {A,B,n} = coeffs();
+    if(!n || Math.abs(A)<1e-14) return {a:0, loss:loss(0)};
+    const a = -B/(2*A);
+    return {a,loss:loss(a)};
+  }
+
+  function fmt(v,d=4){
+    if(!Number.isFinite(v)) return "-";
+    if(Math.abs(v)>=1e6 || (Math.abs(v)>0 && Math.abs(v)<1e-5)) return v.toExponential(3);
+    return v.toFixed(d).replace(/\.?0+$/,"");
+  }
+
+  function niceStep(range, target=8){
+    if(!Number.isFinite(range) || range<=0) return 1;
+    const rough=range/target;
+    const pow=Math.pow(10,Math.floor(Math.log10(rough)));
+    const n=rough/pow;
+    const nice=n<1.5?1:n<3?2:n<7?5:10;
+    return nice*pow;
+  }
+
+  function paddedRange(values, includeZero=true, minSpan=2){
+    let arr=values.filter(Number.isFinite);
+    if(includeZero) arr.push(0);
+    if(!arr.length) return [-1,1];
+    let min=Math.min(...arr), max=Math.max(...arr);
+    if(min===max){min-=1;max+=1}
+    let span=Math.max(max-min,minSpan);
+    let pad=span*.14;
+    return [min-pad,max+pad];
+  }
+
+
+  function convergenceSettings(){
+    const epsilon=Number(els.epsilon.value);
+    return {
+      enabled:els.earlyStop.checked,
+      epsilon:Number.isFinite(epsilon)&&epsilon>0?epsilon:0.0001
+    };
+  }
+
+  function simulateTrajectory(){
+    const eta=Number(els.lr.value);
+    const maxIter=Math.min(500,Math.max(1,Number(els.maxIter.value)||1));
+    const convergence=convergenceSettings();
+    let a=Number(els.initialA.value);
+    if(!Number.isFinite(a)) a=0;
+    const points=[{a,L:loss(a)}];
+    if(!Number.isFinite(eta)||eta<=0) return points;
+    for(let i=0;i<maxIter;i++){
+      if(convergence.enabled && Math.abs(grad(a))<=convergence.epsilon) break;
+      const next=a-eta*grad(a);
+      const L=loss(next);
+      if(!Number.isFinite(next)||!Number.isFinite(L)) break;
+      points.push({a:next,L});
+      a=next;
+      if(Math.abs(a)>1e6||Math.abs(L)>1e15) break;
+    }
+    return points;
+  }
+
+  function computeLockedRanges(){
+    const d=finiteData();
+    if(!d.length){
+      const computed={scatterX:[-0.5,4.5],scatterY:[-1,8],lossX:[-1,3],lossY:[0,10]};
+      state.baseView=cloneView(computed);
+      state.view=cloneView(computed);
+      return;
+    }
+
+    const opt=optimum();
+    const trajectory=simulateTrajectory();
+    let initial=Number(els.initialA.value);
+    if(!Number.isFinite(initial)) initial=0;
+
+    // 산점도 좌표축: 자료의 실제 범위를 중심으로 여백을 작게 둡니다.
+    const xValues=d.map(p=>p.x);
+    const rawXMin=Math.min(0,...xValues);
+    const rawXMax=Math.max(0,...xValues);
+    const rawXSpan=Math.max(rawXMax-rawXMin,1);
+    const xPad=Math.max(rawXSpan*.055,.22);
+    const scatterX=[rawXMin-xPad,rawXMax+xPad];
+
+    const yValues=d.map(p=>p.y);
+    const rawYMin=Math.min(0,...yValues);
+    const rawYMax=Math.max(0,...yValues);
+    const rawYSpan=Math.max(rawYMax-rawYMin,2);
+    const dataXMin=Math.min(...xValues,0);
+    const dataXMax=Math.max(...xValues,0);
+
+    // 정상적인 학습 경로만 축 범위 계산에 반영합니다.
+    // 큰 발산값은 좌표축을 과도하게 늘리지 않고 화면 밖으로 잘리도록 합니다.
+    const slopeLimit=(Math.max(Math.abs(rawYMin),Math.abs(rawYMax),1)+rawYSpan*2.2) /
+      Math.max(Math.abs(dataXMin),Math.abs(dataXMax),1);
+    const slopeCandidates=[initial,opt.a,...trajectory.map(p=>p.a)]
+      .filter(Number.isFinite)
+      .filter(a=>Math.abs(a)<=Math.max(2,slopeLimit));
+
+    const lineY=[];
+    slopeCandidates.forEach(a=>{
+      lineY.push(a*dataXMin,a*dataXMax);
+    });
+    // 최적선과 초기선은 가능하면 항상 보이도록 하되 극단값은 제외합니다.
+    [initial,opt.a].filter(Number.isFinite).forEach(a=>{
+      const vals=[a*dataXMin,a*dataXMax];
+      if(vals.every(v=>Math.abs(v)<=Math.max(8,Math.abs(rawYMax)+rawYSpan*3))){
+        lineY.push(...vals);
+      }
+    });
+
+    let scatterYMin=Math.min(0,...yValues,...lineY);
+    let scatterYMax=Math.max(0,...yValues,...lineY);
+    let scatterYSpan=Math.max(scatterYMax-scatterYMin,3);
+    const yPad=Math.max(scatterYSpan*.075,.35);
+    let scatterY=[scatterYMin-yPad,scatterYMax+yPad];
+
+    // 양수 자료가 대부분일 때 아래쪽 빈 공간이 지나치게 커지지 않도록 조정합니다.
+    if(rawYMin>=0 && scatterY[0]<-rawYSpan*.18){
+      scatterY[0]=-rawYSpan*.10;
+    }
+
+    // 손실함수 x축: 초기값·최적값·실제 경로를 포함하되,
+    // 최적점 주변을 필요 이상으로 넓게 잡지 않습니다.
+    const baseDistance=Math.max(Math.abs(initial-opt.a),.12);
+    const allowedDistance=Math.max(.45,baseDistance*6+0.5);
+    const meaningfulA=trajectory.map(p=>p.a)
+      .filter(Number.isFinite)
+      .filter(a=>Math.abs(a-opt.a)<=allowedDistance)
+      .concat([initial,opt.a]);
+
+    let half=Math.max(
+      .18,
+      ...meaningfulA.filter(Number.isFinite).map(a=>Math.abs(a-opt.a))
+    );
+    half=Math.min(20,half*1.22);
+    const lossX=[opt.a-half,opt.a+half];
+
+    const lossSamples=[];
+    for(let i=0;i<=300;i++){
+      const a=lossX[0]+(lossX[1]-lossX[0])*i/300;
+      lossSamples.push(loss(a));
+    }
+    const finiteLoss=lossSamples.filter(Number.isFinite);
+    const minL=Number.isFinite(opt.loss)?opt.loss:Math.min(...finiteLoss);
+    const maxL=Math.max(...finiteLoss);
+    const rise=Math.max(maxL-minL,.1);
+
+    // 최솟값이 0에서 충분히 떨어져 있으면 최솟값 주변을 확대하여
+    // 손실함수의 변화가 더 잘 보이도록 합니다.
+    let lossYMin;
+    if(minL>rise*1.45){
+      lossYMin=Math.max(0,minL-rise*.22);
+    }else{
+      lossYMin=0;
+    }
+    let lossYMax=maxL+Math.max(rise*.10,.12);
+    if(lossYMax-lossYMin<.8){
+      const mid=(lossYMax+lossYMin)/2;
+      lossYMin=Math.max(0,mid-.4);
+      lossYMax=mid+.4;
+    }
+    const lossY=[lossYMin,lossYMax];
+
+    const computed={scatterX,scatterY,lossX,lossY};
+    state.baseView=cloneView(computed);
+    state.view=cloneView(computed);
+  }
+
+  function cloneView(view){
+    return {
+      scatterX:[...view.scatterX],
+      scatterY:[...view.scatterY],
+      lossX:[...view.lossX],
+      lossY:[...view.lossY]
+    };
+  }
+
+  function sEl(tag,attrs={},text=""){
+    const el=document.createElementNS(NS,tag);
+    Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k,v));
+    if(text) el.textContent=text;
+    return el;
+  }
+
+  function clearSvg(svg){ while(svg.firstChild) svg.removeChild(svg.firstChild); }
+
+
+  function drawAxes(svg,xRange,yRange,margin={l:72,r:24,t:26,b:64}){
+    const vb=svg.viewBox.baseVal;
+    const W=vb.width,H=vb.height;
+    const pw=W-margin.l-margin.r, ph=H-margin.t-margin.b;
+    const sx=x=>margin.l+(x-xRange[0])/(xRange[1]-xRange[0])*pw;
+    const sy=y=>margin.t+(yRange[1]-y)/(yRange[1]-yRange[0])*ph;
+
+    const clipId=`clip-${svg.id}`;
+    const defs=sEl("defs");
+    const clip=sEl("clipPath",{id:clipId});
+    clip.appendChild(sEl("rect",{x:margin.l,y:margin.t,width:pw,height:ph}));
+    defs.appendChild(clip);
+    svg.appendChild(defs);
+
+    const bg=sEl("rect",{x:margin.l,y:margin.t,width:pw,height:ph,fill:"#ffffff",stroke:"#d9dee5"});
+    svg.appendChild(bg);
+
+    const xStep=niceStep(xRange[1]-xRange[0]);
+    const yStep=niceStep(yRange[1]-yRange[0]);
+
+    for(let x=Math.ceil(xRange[0]/xStep)*xStep; x<=xRange[1]+1e-10; x+=xStep){
+      const X=sx(x);
+      svg.appendChild(sEl("line",{x1:X,y1:margin.t,x2:X,y2:H-margin.b,stroke:"#edf0f3","stroke-width":1}));
+      svg.appendChild(sEl("text",{x:X,y:H-margin.b+30,"text-anchor":"middle",fill:"#475467","font-size":18,"font-weight":700},fmt(x,2)));
+    }
+    for(let y=Math.ceil(yRange[0]/yStep)*yStep; y<=yRange[1]+1e-10; y+=yStep){
+      const Y=sy(y);
+      svg.appendChild(sEl("line",{x1:margin.l,y1:Y,x2:W-margin.r,y2:Y,stroke:"#edf0f3","stroke-width":1}));
+      svg.appendChild(sEl("text",{x:margin.l-14,y:Y+6,"text-anchor":"end",fill:"#475467","font-size":18,"font-weight":700},fmt(y,2)));
+    }
+
+    if(xRange[0]<=0 && 0<=xRange[1]){
+      svg.appendChild(sEl("line",{x1:sx(0),y1:margin.t,x2:sx(0),y2:H-margin.b,stroke:"#98a2b3","stroke-width":1.5}));
+    }
+    if(yRange[0]<=0 && 0<=yRange[1]){
+      svg.appendChild(sEl("line",{x1:margin.l,y1:sy(0),x2:W-margin.r,y2:sy(0),stroke:"#98a2b3","stroke-width":1.5}));
+    }
+
+    return {sx,sy,W,H,margin,pw,ph,clipId};
+  }
+
+
+  function drawScatter(){
+    const svg=els.scatter;
+    clearSvg(svg);
+    const d=finiteData();
+    if(!state.view) computeLockedRanges();
+    const opt=optimum();
+    const xr=state.view.scatterX;
+    const yr=state.view.scatterY;
+    const {sx,sy,clipId}=drawAxes(svg,xr,yr);
+    const plot=sEl("g",{"clip-path":`url(#${clipId})`});
+    svg.appendChild(plot);
+
+    const line=(a,color,width,dash="",opacity=.95)=>{
+      const y1=a*xr[0],y2=a*xr[1];
+      plot.appendChild(sEl("line",{
+        x1:sx(xr[0]),y1:sy(y1),x2:sx(xr[1]),y2:sy(y2),
+        stroke:color,"stroke-width":width,"stroke-dasharray":dash,
+        "stroke-linecap":"round",opacity
+      }));
+    };
+
+    // 모든 반복 단계의 추세선을 누적합니다. 이미 표시된 선의 위치와 농도는 바뀌지 않습니다.
+    const trail=state.history.slice(0,-1).filter(h=>Number.isFinite(h.a));
+    trail.forEach((h)=>{
+      line(h.a,"#f43f5e",1.45,"",.36);
+    });
+
+    if(state.previewOptimum){
+      line(opt.a,"#16a34a",3.2,"9 7",.95);
+      const labelX=xr[1]-(xr[1]-xr[0])*.05;
+      const labelY=opt.a*labelX;
+      if(Number.isFinite(labelY) && labelY>=yr[0] && labelY<=yr[1]){
+        svg.appendChild(sEl("text",{x:sx(labelX)-4,y:sy(labelY)-12,"text-anchor":"end",fill:"#15803d","font-size":14,"font-weight":850},`최적 y = ${fmt(opt.a,3)}x`));
+      }
+    }
+    line(state.a,"#ef4444",4,"",.98);
+
+    d.forEach((p)=>{
+      plot.appendChild(sEl("circle",{cx:sx(p.x),cy:sy(p.y),r:8.5,fill:"#2563eb",stroke:"#fff","stroke-width":2.4}));
+      svg.appendChild(sEl("text",{x:sx(p.x)+11,y:sy(p.y)-11,fill:"#334155","font-size":13,"font-weight":700},`(${fmt(p.x,2)}, ${fmt(p.y,2)})`));
+    });
+
+    $("lineSlopeLabel").textContent=fmt(state.a,3);
+  }
+
+
+  function drawLoss(){
+    const svg=els.loss;
+    clearSvg(svg);
+    const {n}=coeffs();
+    if(!n){
+      svg.appendChild(sEl("text",{x:360,y:310,"text-anchor":"middle",fill:"#667085","font-size":18},"자료를 입력하세요."));
+      return;
+    }
+    if(!state.view) computeLockedRanges();
+
+    const xr=state.view.lossX;
+    const yr=state.view.lossY;
+    const samples=[];
+    for(let i=0;i<=240;i++){
+      const a=xr[0]+(xr[1]-xr[0])*i/240;
+      samples.push({a,L:loss(a)});
+    }
+
+    const {sx,sy,clipId}=drawAxes(svg,xr,yr);
+    const plot=sEl("g",{"clip-path":`url(#${clipId})`});
+    svg.appendChild(plot);
+
+    let path="";
+    samples.forEach((p,i)=>{path+=(i?"L":"M")+sx(p.a)+" "+sy(p.L)+" ";});
+    plot.appendChild(sEl("path",{d:path,fill:"none",stroke:"#111827","stroke-width":3,"stroke-linejoin":"round"}));
+
+    const opt=optimum();
+    if(state.previewOptimum){
+      plot.appendChild(sEl("line",{x1:sx(opt.a),y1:sy(yr[0]),x2:sx(opt.a),y2:sy(opt.loss),stroke:"#16a34a","stroke-dasharray":"7 6","stroke-width":2}));
+      plot.appendChild(sEl("circle",{cx:sx(opt.a),cy:sy(opt.loss),r:7.5,fill:"#16a34a",stroke:"#fff","stroke-width":2.2}));
+      svg.appendChild(sEl("text",{x:sx(opt.a)+12,y:sy(opt.loss)-15,fill:"#15803d","font-size":14,"font-weight":850},
+        `꼭짓점 (${fmt(opt.a,3)}, ${fmt(opt.loss,3)})`));
+    }
+
+    const visible=state.history.filter(h=>Number.isFinite(h.a)&&Number.isFinite(h.L));
+    if(visible.length>1){
+      let hp="";
+      visible.forEach((p,i)=>hp+=(i?"L":"M")+sx(p.a)+" "+sy(p.L)+" ");
+      plot.appendChild(sEl("path",{d:hp,fill:"none",stroke:"#ef4444","stroke-width":2.5,opacity:.8}));
+    }
+    visible.forEach((p,i)=>{
+      const current=i===visible.length-1;
+      plot.appendChild(sEl("circle",{
+        cx:sx(p.a),cy:sy(p.L),r:current?8.5:5.5,
+        fill:current?"#ef4444":"#fb7185",stroke:"#fff","stroke-width":current?2.4:1.7,
+        opacity:current?1:.82
+      }));
+    });
+
+    const cL=loss(state.a);
+    if(Number.isFinite(cL) && state.a>=xr[0]&&state.a<=xr[1]&&cL>=yr[0]&&cL<=yr[1]){
+      svg.appendChild(sEl("text",{x:sx(state.a)+10,y:sy(cL)-12,fill:"#b91c1c","font-size":14,"font-weight":800},
+        `(${fmt(state.a,3)}, ${fmt(cL,3)})`));
+    }
+  }
+
+  function parseSpreadsheetNumber(value){
+    const cleaned=String(value ?? "")
+      .trim()
+      .replace(/[−–—]/g,"-")
+      .replace(/,/g,"");
+    if(cleaned==="") return null;
+    const number=Number(cleaned);
+    return Number.isFinite(number)?number:null;
+  }
+
+  function handleSpreadsheetPaste(event){
+    const text=event.clipboardData?.getData("text/plain") ?? "";
+    if(!/[\t\r\n]/.test(text)) return;
+
+    const startRow=Number(event.currentTarget.dataset.i);
+    const startColumn=event.currentTarget.dataset.key==="y"?1:0;
+    const rawRows=text.replace(/\r/g,"").split("\n");
+    const rows=rawRows
+      .map(row=>row.split("\t"))
+      .filter(cells=>cells.some(cell=>parseSpreadsheetNumber(cell)!==null));
+
+    if(!rows.length) return;
+    event.preventDefault();
+
+    let writtenRows=0;
+    rows.forEach((cells,rowOffset)=>{
+      const targetRow=startRow+writtenRows;
+      while(state.data.length<=targetRow) state.data.push({x:NaN,y:NaN});
+
+      let wrote=false;
+      cells.forEach((cell,columnOffset)=>{
+        const targetColumn=startColumn+columnOffset;
+        if(targetColumn>1) return;
+        const value=parseSpreadsheetNumber(cell);
+        if(value===null) return;
+        state.data[targetRow][targetColumn===0?"x":"y"]=value;
+        wrote=true;
+      });
+      if(wrote) writtenRows++;
+    });
+
+    renderTable();
+    resetSimulation(false);
+    setStatus(`스프레드시트에서 ${writtenRows}개 행을 붙여넣었습니다.`,"ok");
+  }
+
+  function renderTable(){
+    els.dataBody.innerHTML="";
+    state.data.forEach((p,i)=>{
+      const tr=document.createElement("tr");
+      const xValue=Number.isFinite(p.x)?p.x:"";
+      const yValue=Number.isFinite(p.y)?p.y:"";
+      tr.innerHTML=`
+        <td>${i+1}</td>
+        <td><input type="number" step="any" value="${xValue}" data-i="${i}" data-key="x" aria-label="${i+1}행 x좌표"></td>
+        <td><input type="number" step="any" value="${yValue}" data-i="${i}" data-key="y" aria-label="${i+1}행 y좌표"></td>
+        <td><button class="btn icon-btn danger" data-delete="${i}" aria-label="${i+1}행 삭제">×</button></td>
+      `;
+      els.dataBody.appendChild(tr);
+    });
+
+    els.dataBody.querySelectorAll("input").forEach(input=>{
+      input.addEventListener("input",e=>{
+        const i=Number(e.target.dataset.i);
+        const key=e.target.dataset.key;
+        const raw=e.target.value.trim();
+        state.data[i][key]=raw===""?NaN:Number(raw);
+        resetSimulation(false);
+      });
+      input.addEventListener("paste",handleSpreadsheetPaste);
+    });
+    els.dataBody.querySelectorAll("[data-delete]").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        state.data.splice(Number(btn.dataset.delete),1);
+        if(!state.data.length) state.data.push({x:NaN,y:NaN});
+        renderTable();
+        resetSimulation(false);
+      });
+    });
+  }
+
+  function renderHistory(){
+    if(!els.historyBody) return;
+    const {n}=coeffs();
+    els.historyBody.innerHTML="";
+    if(!n){
+      const tr=document.createElement("tr");
+      tr.innerHTML='<td colspan="4">자료를 입력하거나 예시 자료를 불러오세요.</td>';
+      els.historyBody.appendChild(tr);
+      return;
+    }
+    const rows=state.history.filter(p=>Number.isFinite(p.a));
+    rows.forEach((p,i)=>{
+      const next=rows[i+1];
+      const tr=document.createElement("tr");
+      tr.innerHTML=`<td>${i}</td><td>${fmt(p.a,5)}</td><td>${fmt(grad(p.a),5)}</td><td>${next?fmt(next.a,5):"-"}</td>`;
+      els.historyBody.appendChild(tr);
+    });
+    const wrap=els.historyBody.closest(".history-wrap");
+    if(wrap) wrap.scrollTop=wrap.scrollHeight;
+  }
+
+  function updateFormula(){
+    const {A,B,C,n}=coeffs();
+    if(!n){
+      $("formulaBox").textContent="자료가 없습니다.";
+      return;
+    }
+    const sign=(v)=>v>=0?"+":"−";
+    $("formulaBox").innerHTML =
+      `L(a) = ${fmt(A,4)}a² ${sign(B)} ${fmt(Math.abs(B),4)}a ${sign(C)} ${fmt(Math.abs(C),4)}<br>`+
+      `L′(a) = ${fmt(2*A,4)}a ${sign(B)} ${fmt(Math.abs(B),4)}<br>`+
+      `a<sub>k+1</sub> = a<sub>k</sub> − η·L′(a<sub>k</sub>)`;
+  }
+
+  function updateMetrics(){
+    const opt=optimum();
+    $("iterValue").textContent=state.iteration;
+    $("aValue").textContent=fmt(state.a,6);
+    $("lossValue").textContent=fmt(loss(state.a),6);
+    $("gradValue").textContent=fmt(grad(state.a),6);
+    $("optAValue").textContent=fmt(opt.a,6);
+    $("minLossValue").textContent=fmt(opt.loss,6);
+  }
+
+  function escapeHtml(text){
+    return String(text ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
+  }
+
+  function withSentenceBreaks(text){
+    return escapeHtml(text).replace(/([.!?])\s+/g, "$1<br>");
+  }
+
+  function updateOptimumButton(){
+    const btn=$("toOptimumBtn");
+    if(btn) btn.textContent=state.previewOptimum ? "최적값 끄기" : "최적값 보기";
+  }
+
+  function setStatus(text="",type=""){
+    els.status.innerHTML=withSentenceBreaks(text);
+    els.status.className="status"+(type?" "+type:"");
+  }
+
+  function setPlaying(on){
+    state.playing=on;
+    els.play.textContent=on?"Ⅱ 일시정지":"▶ 재생";
+    els.runDot.style.background=on?"#2563eb":"#059669";
+    els.runLabel.textContent=on?"실행 중":"준비됨";
+  }
+
+  function render(){
+    updateFormula();
+    updateMetrics();
+    renderHistory();
+    updateOptimumButton();
+    drawScatter();
+    drawLoss();
+  }
+
+  function stop(){
+    if(state.timer){clearInterval(state.timer);state.timer=null;}
+    setPlaying(false);
+  }
+
+  function resetSimulation(updateInitial=true){
+    stop();
+    const initial=Number(els.initialA.value);
+    state.a=Number.isFinite(initial)?initial:0;
+    state.iteration=0;
+    state.history=[{a:state.a,L:loss(state.a)}];
+    state.previewOptimum=false;
+    computeLockedRanges();
+    const convergence=convergenceSettings();
+    setStatus(convergence.enabled
+      ? `초깃값에서 시작합니다. |L′(a)| ≤ ${fmt(convergence.epsilon,8)}이면 조기 종료됩니다.`
+      : "초깃값에서 시작합니다. 최대 반복 횟수까지 실행됩니다.");
+    render();
+  }
+
+  function step(){
+    const d=finiteData();
+    if(!d.length){setStatus("먼저 산점도 자료를 입력하세요.","error");stop();return false;}
+    const eta=Number(els.lr.value);
+    if(!Number.isFinite(eta)||eta<=0){setStatus("학습률은 0보다 큰 수로 입력하세요.","error");stop();return false;}
+    const maxIter=Math.max(1,Number(els.maxIter.value)||1);
+    const convergence=convergenceSettings();
+    if(convergence.enabled && (!Number.isFinite(Number(els.epsilon.value)) || Number(els.epsilon.value)<=0)){
+      setStatus("수렴 기준 ε은 0보다 큰 수로 입력하세요.","error");stop();return false;
+    }
+    if(state.iteration>=maxIter){setStatus("설정한 최대 반복 횟수에 도달했습니다.","ok");stop();return false;}
+
+    const g=grad(state.a);
+    if(convergence.enabled && Math.abs(g)<=convergence.epsilon){
+      setStatus(`수렴 기준 |L′(a)| ≤ ε (${fmt(convergence.epsilon,8)})에 도달했습니다.`,"ok");
+      stop();
+      render();
+      return false;
+    }
+
+    const next=state.a-eta*g;
+    state.iteration++;
+    state.a=next;
+    const L=loss(state.a);
+    state.history.push({a:state.a,L});
+
+    if(!Number.isFinite(next)||!Number.isFinite(L)||Math.abs(next)>1e9||Math.abs(L)>1e18){
+      setStatus("값이 발산했습니다. 학습률을 더 작게 설정해 보세요.","error");
+      stop();
+      render();
+      return false;
+    }
+
+    const nextGrad=grad(state.a);
+    if(convergence.enabled && Math.abs(nextGrad)<=convergence.epsilon){
+      setStatus(`수렴 기준 |L′(a)| ≤ ε (${fmt(convergence.epsilon,8)})에 도달했습니다.`,"ok");
+      stop();
+    }else if(state.iteration>=maxIter){
+      setStatus("설정한 최대 반복 횟수에 도달했습니다.","ok");
+      stop();
+    }else{
+      setStatus(`a ← a − ηL′(a)를 적용했습니다. (η = ${fmt(eta,4)}, |L′(a)| = ${fmt(Math.abs(nextGrad),7)})`);
+    }
+    render();
+    return true;
+  }
+
+  const CHART_MARGIN={l:72,r:24,t:26,b:64};
+
+  function svgPoint(svg,event){
+    const point=svg.createSVGPoint();
+    point.x=event.clientX;
+    point.y=event.clientY;
+    const matrix=svg.getScreenCTM();
+    return matrix?point.matrixTransform(matrix.inverse()):{x:0,y:0};
+  }
+
+  function chartConfig(kind){
+    if(kind==="scatter") return {svg:els.scatter,xKey:"scatterX",yKey:"scatterY"};
+    return {svg:els.loss,xKey:"lossX",yKey:"lossY"};
+  }
+
+  function insidePlot(svg,point){
+    const vb=svg.viewBox.baseVal;
+    return point.x>=CHART_MARGIN.l && point.x<=vb.width-CHART_MARGIN.r &&
+      point.y>=CHART_MARGIN.t && point.y<=vb.height-CHART_MARGIN.b;
+  }
+
+  function zoomChart(kind,event){
+    event.preventDefault();
+    if(!state.view) return;
+    const {svg,xKey,yKey}=chartConfig(kind);
+    const point=svgPoint(svg,event);
+    if(!insidePlot(svg,point)) return;
+    const vb=svg.viewBox.baseVal;
+    const pw=vb.width-CHART_MARGIN.l-CHART_MARGIN.r;
+    const ph=vb.height-CHART_MARGIN.t-CHART_MARGIN.b;
+    const xr=state.view[xKey];
+    const yr=state.view[yKey];
+    const focusX=xr[0]+(point.x-CHART_MARGIN.l)/pw*(xr[1]-xr[0]);
+    const focusY=yr[1]-(point.y-CHART_MARGIN.t)/ph*(yr[1]-yr[0]);
+    const factor=event.deltaY<0?0.84:1.19;
+    const nextX=[focusX+(xr[0]-focusX)*factor,focusX+(xr[1]-focusX)*factor];
+    const nextY=[focusY+(yr[0]-focusY)*factor,focusY+(yr[1]-focusY)*factor];
+    if(nextX[1]-nextX[0]>1e-10 && nextY[1]-nextY[0]>1e-10 &&
+       nextX[1]-nextX[0]<1e12 && nextY[1]-nextY[0]<1e15){
+      state.view[xKey]=nextX;
+      state.view[yKey]=nextY;
+      kind==="scatter"?drawScatter():drawLoss();
+    }
+  }
+
+  function beginPan(kind,event){
+    if(event.button!==0 || !state.view) return;
+    const {svg,xKey,yKey}=chartConfig(kind);
+    const point=svgPoint(svg,event);
+    if(!insidePlot(svg,point)) return;
+    event.preventDefault();
+    state.drag={kind,pointerId:event.pointerId,start:point,xRange:[...state.view[xKey]],yRange:[...state.view[yKey]]};
+    svg.setPointerCapture(event.pointerId);
+    svg.classList.add("dragging");
+  }
+
+  function movePan(kind,event){
+    if(!state.drag || state.drag.kind!==kind || state.drag.pointerId!==event.pointerId) return;
+    const {svg,xKey,yKey}=chartConfig(kind);
+    const point=svgPoint(svg,event);
+    const vb=svg.viewBox.baseVal;
+    const pw=vb.width-CHART_MARGIN.l-CHART_MARGIN.r;
+    const ph=vb.height-CHART_MARGIN.t-CHART_MARGIN.b;
+    const dx=(point.x-state.drag.start.x)*(state.drag.xRange[1]-state.drag.xRange[0])/pw;
+    const dy=(point.y-state.drag.start.y)*(state.drag.yRange[1]-state.drag.yRange[0])/ph;
+    state.view[xKey]=[state.drag.xRange[0]-dx,state.drag.xRange[1]-dx];
+    state.view[yKey]=[state.drag.yRange[0]+dy,state.drag.yRange[1]+dy];
+    kind==="scatter"?drawScatter():drawLoss();
+  }
+
+  function endPan(kind,event){
+    if(!state.drag || state.drag.kind!==kind) return;
+    const {svg}=chartConfig(kind);
+    if(svg.hasPointerCapture && svg.hasPointerCapture(event.pointerId)) svg.releasePointerCapture(event.pointerId);
+    svg.classList.remove("dragging");
+    state.drag=null;
+  }
+
+  function resetChartView(kind){
+    if(!state.baseView || !state.view) return;
+    if(kind==="scatter"){
+      state.view.scatterX=[...state.baseView.scatterX];
+      state.view.scatterY=[...state.baseView.scatterY];
+      drawScatter();
+    }else{
+      state.view.lossX=[...state.baseView.lossX];
+      state.view.lossY=[...state.baseView.lossY];
+      drawLoss();
+    }
+  }
+
+  function syncConvergenceUI(){
+    els.epsilon.disabled=!els.earlyStop.checked;
+  }
+
+  function currentDelay(){
+    return Math.min(1200,Math.max(40,Number(els.speed.value)||100));
+  }
+
+  function updateSpeedDisplay(){
+    const delay=currentDelay();
+    const word=delay<=100?"빠름":delay<=300?"보통":delay<=700?"느림":"매우 느림";
+    els.speedValue.textContent=`${word} · ${delay}ms`;
+  }
+
+  function startPlaybackTimer(){
+    if(state.timer) clearInterval(state.timer);
+    state.timer=setInterval(()=>{
+      const keep=step();
+      if(!keep) stop();
+    },currentDelay());
+  }
+
+  function playToggle(){
+    if(state.playing){stop();return;}
+    setPlaying(true);
+    startPlaybackTimer();
+  }
+
+  $("addRowBtn").addEventListener("click",()=>{
+    const last=state.data[state.data.length-1];
+    state.data.push({x:last&&Number.isFinite(last.x)?last.x+1:1,y:0});
+    renderTable();
+    resetSimulation(false);
+  });
+
+  $("sampleBtn").addEventListener("click",()=>{
+    state.data=[{x:-2,y:-11},{x:-1,y:-3},{x:0,y:0},{x:1,y:3},{x:2,y:6}];
+    renderTable();
+    resetSimulation(false);
+  });
+
+  $("clearBtn").addEventListener("click",()=>{
+    state.data=[{x:NaN,y:NaN}];
+    renderTable();
+    resetSimulation(false);
+  });
+
+  $("resetBtn").addEventListener("click",()=>resetSimulation());
+  $("stepBtn").addEventListener("click",step);
+  $("playBtn").addEventListener("click",playToggle);
+
+  $("toOptimumBtn").addEventListener("click",()=>{
+    stop();
+    const {n}=coeffs();
+    if(!n){
+      setStatus("먼저 산점도 자료를 입력하거나 예시 자료를 불러오세요.","error");
+      render();
+      return;
+    }
+    state.previewOptimum=!state.previewOptimum;
+    if(state.previewOptimum){
+      setStatus("현재 단계와 자취는 유지합니다. 최적 추세선과 손실함수의 꼭짓점을 표시했습니다.","ok");
+    }else{
+      setStatus("현재 단계와 자취는 유지합니다. 최적 추세선과 손실함수의 꼭짓점을 숨겼습니다.","ok");
+    }
+    render();
+  });
+
+  [els.initialA,els.lr,els.maxIter,els.epsilon].forEach(el=>el.addEventListener("change",()=>resetSimulation()));
+  els.earlyStop.addEventListener("change",()=>{
+    syncConvergenceUI();
+    resetSimulation();
+  });
+  els.speed.addEventListener("input",()=>{
+    updateSpeedDisplay();
+    if(state.playing){
+      startPlaybackTimer();
+      setStatus(`재생 속도를 ${currentDelay()}ms 간격으로 변경했습니다.`);
+    }
+  });
+
+  // 슬라이더 위에서 마우스 휠을 굴려도 속도를 조절할 수 있습니다.
+  els.speed.addEventListener("wheel",(event)=>{
+    event.preventDefault();
+    const step=Number(els.speed.step)||10;
+    const min=Number(els.speed.min)||40;
+    const max=Number(els.speed.max)||1200;
+    const direction=event.deltaY<0?-1:1;
+    els.speed.value=String(Math.min(max,Math.max(min,Number(els.speed.value)+direction*step)));
+    els.speed.dispatchEvent(new Event("input"));
+  },{passive:false});
+
+  $("scatterResetView").addEventListener("click",()=>resetChartView("scatter"));
+  $("lossResetView").addEventListener("click",()=>resetChartView("loss"));
+
+  [[els.scatter,"scatter"],[els.loss,"loss"]].forEach(([svg,kind])=>{
+    svg.addEventListener("wheel",event=>zoomChart(kind,event),{passive:false});
+    svg.addEventListener("pointerdown",event=>beginPan(kind,event));
+    svg.addEventListener("pointermove",event=>movePan(kind,event));
+    svg.addEventListener("pointerup",event=>endPan(kind,event));
+    svg.addEventListener("pointercancel",event=>endPan(kind,event));
+    svg.addEventListener("dblclick",()=>resetChartView(kind));
+  });
+
+  syncConvergenceUI();
+  updateSpeedDisplay();
+  renderTable();
+  resetSimulation();
+})();
+</script>
+</body>
+</html>
