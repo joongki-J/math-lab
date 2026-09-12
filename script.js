@@ -21,14 +21,6 @@ const TOOLS = [
     url: "./gradient-descent-2/"
   },
   {
-    title: "시어핀스키삼각형",
-    subject: "미적분Ⅱ",
-    symbol: "∫",
-    description: "직사각형 넓이의 합이 정적분 값에 가까워지는 과정을 단계별로 관찰합니다.",
-    tags: ["정적분", "리만합", "넓이"],
-    url: "./sierpinski/"
-  },
-  {
     title: "몬테카를로 원주율 실험",
     subject: "확률과 통계",
     symbol: "π",
