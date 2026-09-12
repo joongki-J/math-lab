@@ -21,20 +21,20 @@ const TOOLS = [
     url: "./gradient-descent-2/"
   },
   {
+    title: "시어핀스키 삼각형 탐구",
+    subject: "미적분Ⅱ",
+    symbol: "△",
+    description: "반복 규칙이 만들어내는 프랙탈 구조와 자기유사성을 탐구합니다.",
+    tags: ["프랙탈", "반복", "도형"],
+    url: "./sierpinski/"
+  },
+  {
     title: "몬테카를로 원주율 실험",
     subject: "확률과 통계",
     symbol: "π",
     description: "무작위 점의 비율로 원주율을 추정하며 시행 횟수의 힘을 확인합니다.",
     tags: ["확률", "원주율", "모의실험"],
     url: "./monte-carlo/"
-  },
-  {
-    title: "시어핀스키 삼각형 탐구",
-    subject: "기하",
-    symbol: "△",
-    description: "반복 규칙이 만들어내는 프랙탈 구조와 자기유사성을 탐구합니다.",
-    tags: ["프랙탈", "반복", "도형"],
-    url: "./sierpinski/"
   },
   {
     title: "퍼셉트론 시뮬레이터",
