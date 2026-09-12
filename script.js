@@ -27,22 +27,6 @@ const TOOLS = [
     description: "반복 규칙이 만들어내는 프랙탈 구조와 자기유사성을 탐구합니다.",
     tags: ["프랙탈", "반복", "도형"],
     url: "./sierpinski/"
-  },
-  {
-    title: "몬테카를로 원주율 실험",
-    subject: "확률과 통계",
-    symbol: "π",
-    description: "무작위 점의 비율로 원주율을 추정하며 시행 횟수의 힘을 확인합니다.",
-    tags: ["확률", "원주율", "모의실험"],
-    url: "./monte-carlo/"
-  },
-  {
-    title: "퍼셉트론 시뮬레이터",
-    subject: "인공지능 수학",
-    symbol: "Σ",
-    description: "AND·OR·NAND 논리 연산으로 인공신경망의 기본 원리를 다룹니다.",
-    tags: ["퍼셉트론", "신경망", "논리연산"],
-    url: "./perceptron/"
   }
 ];
 
