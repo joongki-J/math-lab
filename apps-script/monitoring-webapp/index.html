@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>모니터링 검토</title>
+  <style>
+    :root {
+      --bg: #f4f6fa;
+      --card: #ffffff;
+      --text: #1d2433;
+      --sub: #5d6880;
+      --line: #e2e7f0;
+      --primary: #3767e8;
+      --a: #1f9d68; --a-bg: #e7f7ef;
+      --b: #d48a00; --b-bg: #fff4dc;
+      --c: #d9473f; --c-bg: #fdeceb;
+      --pending: #9aa3b5;
+      --radius: 16px;
+      --shadow: 0 2px 10px rgba(20, 30, 60, .07);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #12151c; --card: #1c212c; --text: #e9edf5; --sub: #a1abc0; --line: #2d3442;
+        --primary: #6d93ff;
+        --a: #4fd39b; --a-bg: #173528; --b: #f2b84b; --b-bg: #3a2f17; --c: #ff7d75; --c-bg: #3d1f1e;
+        --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+      font-size: 16px; line-height: 1.55; word-break: keep-all; overflow-wrap: anywhere;
+    }
+    button { font: inherit; color: inherit; }
+
+    /* 상단바 */
+    header {
+      position: sticky; top: 0; z-index: 10;
+      background: var(--card); border-bottom: 1px solid var(--line);
+      padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    }
+    .top { display: flex; align-items: center; gap: 10px; }
+    .doc-title { flex: 1; font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .counter { font-size: 13px; color: var(--sub); white-space: nowrap; }
+    .icon-btn {
+      border: 1px solid var(--line); background: var(--card); border-radius: 10px;
+      padding: 6px 10px; font-size: 13px; cursor: pointer;
+    }
+    .progress { margin-top: 8px; height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
+    .progress > i { display: block; height: 100%; width: 0; background: var(--primary); transition: width .25s; }
+
+    main { max-width: 640px; margin: 0 auto; padding: 16px 16px calc(96px + env(safe-area-inset-bottom)); }
+
+    .crumb { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .chip { font-size: 12px; padding: 3px 10px; border-radius: 99px; background: var(--card); border: 1px solid var(--line); color: var(--sub); }
+    .chip.strong { color: var(--primary); border-color: var(--primary); }
+
+    .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; margin-bottom: 14px; }
+    .question { font-size: 18px; font-weight: 700; line-height: 1.5; margin: 0; }
+
+    .section-title { font-size: 13px; font-weight: 700; color: var(--sub); margin: 18px 4px 8px; display: flex; justify-content: space-between; align-items: center; }
+    .toggle-general { border: 0; background: none; color: var(--primary); font-size: 12px; cursor: pointer; padding: 0; }
+
+    /* 선택지 */
+    .option {
+      display: block; width: 100%; text-align: left; cursor: pointer;
+      background: var(--card); border: 2px solid var(--line); border-radius: var(--radius);
+      padding: 14px 14px 14px 14px; margin-bottom: 10px; box-shadow: var(--shadow);
+      transition: border-color .15s, background .15s, transform .08s;
+    }
+    .option:active { transform: scale(.985); }
+    .option-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .badge {
+      flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+      font-weight: 800; font-size: 15px; color: #fff;
+    }
+    .option[data-key="A"] .badge { background: var(--a); }
+    .option[data-key="B"] .badge { background: var(--b); }
+    .option[data-key="C"] .badge { background: var(--c); }
+    .option-label { font-weight: 700; font-size: 14px; color: var(--sub); flex: 1; }
+    .check { font-size: 13px; font-weight: 700; opacity: 0; }
+    .option-text { font-size: 15.5px; }
+    .option-general { font-size: 12.5px; color: var(--sub); margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+    body.hide-general .option-general { display: none; }
+    .option.selected .check { opacity: 1; }
+    .option.selected[data-key="A"] { border-color: var(--a); background: var(--a-bg); }
+    .option.selected[data-key="B"] { border-color: var(--b); background: var(--b-bg); }
+    .option.selected[data-key="C"] { border-color: var(--c); background: var(--c-bg); }
+    .option.selected[data-key="A"] .check { color: var(--a); }
+    .option.selected[data-key="B"] .check { color: var(--b); }
+    .option.selected[data-key="C"] .check { color: var(--c); }
+    .option.empty { cursor: default; opacity: .45; box-shadow: none; }
+    .option.empty .option-text { font-style: italic; }
+
+    textarea {
+      width: 100%; min-height: 110px; resize: vertical; border: 1px solid var(--line); border-radius: 12px;
+      background: var(--card); color: var(--text); padding: 12px; font: inherit; font-size: 15px; line-height: 1.6;
+    }
+    textarea:focus { outline: 2px solid var(--primary); border-color: transparent; }
+    textarea.big { min-height: 55vh; }
+    .hint { font-size: 12px; color: var(--sub); margin: 6px 4px 0; }
+
+    /* 하단 네비게이션 */
+    nav.bottom {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+      background: var(--card); border-top: 1px solid var(--line);
+      padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+      display: flex; gap: 10px; justify-content: center;
+    }
+    nav.bottom .wrap { width: 100%; max-width: 640px; display: flex; gap: 10px; }
+    .nav-btn {
+      flex: 1; border: 0; border-radius: 12px; padding: 13px 0; font-weight: 700; cursor: pointer;
+      background: var(--line); color: var(--text);
+    }
+    .nav-btn.primary { background: var(--primary); color: #fff; }
+    .nav-btn:disabled { opacity: .4; cursor: default; }
+
+    /* 목록 시트 */
+    .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 20; display: none; }
+    .sheet {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; max-height: 78vh; overflow-y: auto;
+      background: var(--card); border-radius: 20px 20px 0 0; padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
+      transform: translateY(100%); transition: transform .25s;
+    }
+    body.sheet-open .sheet-backdrop { display: block; }
+    body.sheet-open .sheet { transform: translateY(0); }
+    .sheet-handle { width: 40px; height: 5px; border-radius: 99px; background: var(--line); margin: 4px auto 10px; }
+    .sheet h2 { font-size: 16px; margin: 0 0 6px; }
+    .stats { display: flex; gap: 8px; font-size: 12px; color: var(--sub); margin-bottom: 8px; flex-wrap: wrap; }
+    .group-title { font-size: 12px; font-weight: 700; color: var(--sub); margin: 12px 0 4px; }
+    .row-item {
+      display: flex; gap: 10px; align-items: center; width: 100%; text-align: left;
+      border: 0; background: none; padding: 10px 6px; border-radius: 10px; cursor: pointer;
+    }
+    .row-item.current { background: var(--bg); }
+    .row-item .q { flex: 1; font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .dot { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff; background: var(--pending); }
+    .dot.A { background: var(--a); } .dot.B { background: var(--b); } .dot.C { background: var(--c); }
+
+    /* 상태 */
+    .toast {
+      position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+      background: rgba(25, 30, 40, .92); color: #fff; font-size: 13px; padding: 8px 14px; border-radius: 99px;
+      z-index: 30; opacity: 0; pointer-events: none; transition: opacity .2s; white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+    .toast.error { background: #c0392b; }
+    .loading { text-align: center; color: var(--sub); padding: 60px 0; }
+    .spinner { width: 34px; height: 34px; border: 3px solid var(--line); border-top-color: var(--primary); border-radius: 50%; margin: 0 auto 12px; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .slide-l { animation: slideL .2s ease-out; } .slide-r { animation: slideR .2s ease-out; }
+    @keyframes slideL { from { opacity: 0; transform: translateX(24px); } }
+    @keyframes slideR { from { opacity: 0; transform: translateX(-24px); } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="top">
+      <div class="doc-title" id="docTitle">모니터링 검토</div>
+      <span class="counter" id="counter"></span>
+      <button class="icon-btn" id="listBtn" type="button" aria-label="전체 목록">☰ 목록</button>
+    </div>
+    <div class="progress"><i id="progressBar"></i></div>
+  </header>
+
+  <main id="main">
+    <div class="loading"><div class="spinner"></div>시트에서 불러오는 중…</div>
+  </main>
+
+  <nav class="bottom">
+    <div class="wrap">
+      <button class="nav-btn" id="prevBtn" type="button">‹ 이전</button>
+      <button class="nav-btn primary" id="nextBtn" type="button">다음 ›</button>
+    </div>
+  </nav>
+
+  <div class="sheet-backdrop" id="backdrop"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-label="전체 문항 목록">
+    <div class="sheet-handle"></div>
+    <h2>전체 문항</h2>
+    <div class="stats" id="stats"></div>
+    <div id="sheetList"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  var state = { data: null, page: 0, pages: [] };
+  var STORE_KEY = 'monitoring-webapp';
+
+  // ---------- 유틸 ----------
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined && text !== null) e.textContent = text;
+    return e;
+  }
+  function store(key, val) {
+    try {
+      var o = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
+      if (val === undefined) return o[key];
+      o[key] = val; localStorage.setItem(STORE_KEY, JSON.stringify(o));
+    } catch (e) { return undefined; }
+  }
+  var toastTimer;
+  function toast(msg, isError) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.className = 'toast' + (isError ? ' error' : ''); }, isError ? 3500 : 1300);
+  }
+  function call(fn, args) {
+    return new Promise(function (resolve, reject) {
+      var r = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      r[fn].apply(r, args || []);
+    });
+  }
+
+  // ---------- 로딩 ----------
+  call('getData').then(function (data) {
+    state.data = data;
+    document.getElementById('docTitle').textContent = data.title || '모니터링 검토';
+    state.pages = data.items.map(function (it) { return { type: 'item', item: it }; });
+    if (data.summary) state.pages.push({ type: 'summary' });
+    if (!state.pages.length) {
+      document.getElementById('main').innerHTML = '<div class="loading">C열에서 "1) …" 형식의 문항을 찾지 못했습니다.</div>';
+      return;
+    }
+    if (store('hideGeneral')) document.body.classList.add('hide-general');
+    var saved = Number(store('page'));
+    go(saved >= 0 && saved < state.pages.length ? saved : 0);
+  }).catch(function (err) {
+    document.getElementById('main').innerHTML = '';
+    var box = el('div', 'loading', '불러오기 실패: ' + (err && err.message ? err.message : err));
+    document.getElementById('main').appendChild(box);
+  });
+
+  // ---------- 화면 그리기 ----------
+  function go(idx, dir) {
+    if (idx < 0 || idx >= state.pages.length) return;
+    flushNote();
+    state.page = idx;
+    store('page', idx);
+    render(dir);
+    window.scrollTo(0, 0);
+  }
+
+  function render(dir) {
+    var main = document.getElementById('main');
+    main.innerHTML = '';
+    var wrap = el('div', dir === 'next' ? 'slide-l' : dir === 'prev' ? 'slide-r' : '');
+    var p = state.pages[state.page];
+    if (p.type === 'item') renderItem(wrap, p.item); else renderSummary(wrap);
+    main.appendChild(wrap);
+    updateChrome();
+  }
+
+  function renderItem(wrap, it) {
+    var crumb = el('div', 'crumb');
+    if (it.stage) crumb.appendChild(el('span', 'chip', it.stage));
+    if (it.element) crumb.appendChild(el('span', 'chip strong', it.element));
+    wrap.appendChild(crumb);
+
+    var qCard = el('div', 'card');
+    qCard.appendChild(el('p', 'question', it.question));
+    wrap.appendChild(qCard);
+
+    var st = el('div', 'section-title');
+    st.appendChild(el('span', '', '검토 결과 선택'));
+    var tg = el('button', 'toggle-general', document.body.classList.contains('hide-general') ? '수준 설명 보기' : '수준 설명 숨기기');
+    tg.type = 'button';
+    tg.onclick = function () {
+      var hidden = document.body.classList.toggle('hide-general');
+      store('hideGeneral', hidden);
+      tg.textContent = hidden ? '수준 설명 보기' : '수준 설명 숨기기';
+    };
+    st.appendChild(tg);
+    wrap.appendChild(st);
+
+    state.data.levels.forEach(function (lv, i) {
+      var text = it.options[i];
+      var opt = el('button', 'option' + (text ? '' : ' empty') + (it.result === lv.key ? ' selected' : ''));
+      opt.type = 'button';
+      opt.setAttribute('data-key', lv.key);
+      var head = el('div', 'option-head');
+      head.appendChild(el('span', 'badge', lv.key));
+      head.appendChild(el('span', 'option-label', lv.key + ' 수준'));
+      head.appendChild(el('span', 'check', '✓ 선택됨'));
+      opt.appendChild(head);
+      opt.appendChild(el('div', 'option-text', text || '이 문항에는 해당 수준의 설명이 없습니다.'));
+      if (lv.text) opt.appendChild(el('div', 'option-general', lv.text));
+      if (text) opt.onclick = function () { choose(it, lv.key); };
+      wrap.appendChild(opt);
+    });
+
+    wrap.appendChild(el('div', 'section-title', '검토 노트 (의견 메모)'));
+    var ta = el('textarea');
+    ta.id = 'noteInput';
+    ta.placeholder = '이 문항에 대한 의견을 메모하세요. 입력을 멈추면 자동 저장됩니다.';
+    ta.value = it.note || '';
+    ta.oninput = function () { scheduleNote(it, ta.value); };
+    ta.onblur = flushNote;
+    wrap.appendChild(ta);
+    wrap.appendChild(el('p', 'hint', '시트 H열에 저장됩니다. 선택한 수준은 G열에 기록되며, 같은 수준을 다시 누르면 선택이 해제됩니다.'));
+  }
+
+  function renderSummary(wrap) {
+    var s = state.data.summary;
+    var crumb = el('div', 'crumb');
+    crumb.appendChild(el('span', 'chip strong', s.label));
+    wrap.appendChild(crumb);
+
+    var counts = countResults();
+    var card = el('div', 'card');
+    card.appendChild(el('p', 'question', '검토 결과 요약'));
+    card.appendChild(el('div', 'stats',
+      'A ' + counts.A + ' · B ' + counts.B + ' · C ' + counts.C + ' · 미선택 ' + counts.none + ' (총 ' + state.data.items.length + '문항)'));
+    wrap.appendChild(card);
+
+    wrap.appendChild(el('div', 'section-title', '종합의견 (시트 C' + s.row + ')'));
+    var ta = el('textarea', 'big');
+    ta.id = 'noteInput';
+    ta.value = s.text || '';
+    ta.oninput = function () { scheduleSummary(ta.value); };
+    ta.onblur = flushNote;
+    wrap.appendChild(ta);
+    if (s.note) wrap.appendChild(el('p', 'hint', '메모: ' + s.note));
+  }
+
+  function updateChrome() {
+    var total = state.pages.length, idx = state.page;
+    var itemsN = state.data.items.length;
+    document.getElementById('counter').textContent =
+      state.pages[idx].type === 'item' ? (idx + 1) + ' / ' + itemsN : '종합의견';
+    var done = state.data.items.filter(function (it) { return it.result; }).length;
+    document.getElementById('progressBar').style.width = (itemsN ? done / itemsN * 100 : 0) + '%';
+    document.getElementById('prevBtn').disabled = idx === 0;
+    var next = document.getElementById('nextBtn');
+    next.disabled = idx === total - 1;
+    next.textContent = idx === total - 1 ? '마지막' : (state.pages[idx + 1].type === 'summary' ? '종합의견 ›' : '다음 ›');
+  }
+
+  function countResults() {
+    var c = { A: 0, B: 0, C: 0, none: 0 };
+    state.data.items.forEach(function (it) { if (it.result) c[it.result]++; else c.none++; });
+    return c;
+  }
+
+  // ---------- 저장 ----------
+  function choose(it, key) {
+    var prev = it.result;
+    var next = prev === key ? '' : key;
+    it.result = next;
+    render();
+    call('saveResult', [it.row, next, it.question]).then(function () {
+      toast(next ? next + ' 수준으로 저장됨' : '선택 해제됨 (검토중)');
+      // 선택했으면 잠시 후 다음 문항으로 이동
+      if (next && state.pages[state.page].item === it && state.page < state.pages.length - 1) {
+        setTimeout(function () {
+          if (state.pages[state.page].item === it && document.activeElement.id !== 'noteInput') go(state.page + 1, 'next');
+        }, 450);
+      }
+    }).catch(function (err) {
+      it.result = prev;
+      if (state.pages[state.page].item === it) render();
+      toast('저장 실패: ' + (err.message || err), true);
+    });
+  }
+
+  var pending = null, pendingTimer = null;
+  function scheduleNote(it, value) {
+    pending = { fn: 'saveNote', args: [it.row, value, it.question], apply: function () { it.note = value; } };
+    clearTimeout(pendingTimer);
+    pendingTimer = setTimeout(flushNote, 1200);
+  }
+  function scheduleSummary(value) {
+    var s = state.data.summary;
+    pending = { fn: 'saveSummary', args: [s.row, value], apply: function () { s.text = value; } };
+    clearTimeout(pendingTimer);
+    pendingTimer = setTimeout(flushNote, 1500);
+  }
+  function flushNote() {
+    clearTimeout(pendingTimer);
+    if (!pending) return;
+    var job = pending; pending = null;
+    job.apply();
+    call(job.fn, job.args).then(function () { toast('메모 저장됨'); })
+      .catch(function (err) { toast('메모 저장 실패: ' + (err.message || err), true); });
+  }
+  window.addEventListener('pagehide', flushNote);
+  document.addEventListener('visibilitychange', function () { if (document.hidden) flushNote(); });
+
+  // ---------- 목록 시트 ----------
+  function openSheet() {
+    if (!state.data) return;
+    flushNote();
+    var c = countResults();
+    document.getElementById('stats').textContent =
+      'A ' + c.A + ' · B ' + c.B + ' · C ' + c.C + ' · 미선택 ' + c.none;
+    var list = document.getElementById('sheetList');
+    list.innerHTML = '';
+    var lastGroup = null;
+    state.pages.forEach(function (p, i) {
+      var group = p.type === 'item' ? p.item.stage + (p.item.element ? ' › ' + p.item.element : '') : state.data.summary.label;
+      if (group !== lastGroup) { list.appendChild(el('div', 'group-title', group)); lastGroup = group; }
+      var b = el('button', 'row-item' + (i === state.page ? ' current' : ''));
+      b.type = 'button';
+      if (p.type === 'item') {
+        b.appendChild(el('span', 'dot ' + (p.item.result || ''), p.item.result || '–'));
+        b.appendChild(el('span', 'q', p.item.question));
+      } else {
+        b.appendChild(el('span', 'dot', '✎'));
+        b.appendChild(el('span', 'q', '종합의견 작성'));
+      }
+      b.onclick = function () { closeSheet(); go(i); };
+      list.appendChild(b);
+    });
+    document.body.classList.add('sheet-open');
+  }
+  function closeSheet() { document.body.classList.remove('sheet-open'); }
+
+  document.getElementById('listBtn').onclick = openSheet;
+  document.getElementById('backdrop').onclick = closeSheet;
+  document.getElementById('prevBtn').onclick = function () { go(state.page - 1, 'prev'); };
+  document.getElementById('nextBtn').onclick = function () { go(state.page + 1, 'next'); };
+
+  // ---------- 스와이프 이동 ----------
+  var sx = null, sy = null;
+  document.getElementById('main').addEventListener('touchstart', function (e) {
+    if (e.target.tagName === 'TEXTAREA') { sx = null; return; }
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+  }, { passive: true });
+  document.getElementById('main').addEventListener('touchend', function (e) {
+    if (sx === null || !state.data) return;
+    var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+    sx = null;
+    if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx < 0) go(state.page + 1, 'next'); else go(state.page - 1, 'prev');
+    }
+  }, { passive: true });
+</script>
+</body>
+</html>
