@@ -63,7 +63,6 @@
     .question { font-size: 18px; font-weight: 700; line-height: 1.5; margin: 0; }
 
     .section-title { font-size: 13px; font-weight: 700; color: var(--sub); margin: 18px 4px 8px; display: flex; justify-content: space-between; align-items: center; }
-    .toggle-general { border: 0; background: none; color: var(--primary); font-size: 12px; cursor: pointer; padding: 0; }
 
     /* 선택지 */
     .option {
@@ -84,8 +83,6 @@
     .option-label { font-weight: 700; font-size: 14px; color: var(--sub); flex: 1; }
     .check { font-size: 13px; font-weight: 700; opacity: 0; }
     .option-text { font-size: 15.5px; }
-    .option-general { font-size: 12.5px; color: var(--sub); margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
-    body.hide-general .option-general { display: none; }
     .option.selected .check { opacity: 1; }
     .option.selected[data-key="A"] { border-color: var(--a); background: var(--a-bg); }
     .option.selected[data-key="B"] { border-color: var(--b); background: var(--b-bg); }
@@ -102,7 +99,11 @@
     }
     textarea:focus { outline: 2px solid var(--primary); border-color: transparent; }
     textarea.big { min-height: 55vh; }
-    .hint { font-size: 12px; color: var(--sub); margin: 6px 4px 0; }
+    .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0 6px; }
+    .tile { border-radius: 12px; padding: 10px 4px; text-align: center; background: var(--bg); }
+    .tile.A { background: var(--a-bg); color: var(--a); } .tile.B { background: var(--b-bg); color: var(--b); } .tile.C { background: var(--c-bg); color: var(--c); }
+    .tile-num { font-size: 22px; font-weight: 800; line-height: 1.2; } .tile-label { font-size: 12px; font-weight: 700; }
+    .sum-line { display: flex; gap: 10px; align-items: center; font-size: 14px; margin-top: 8px; }
 
     /* 하단 네비게이션 */
     nav.bottom {
@@ -231,7 +232,6 @@
       document.getElementById('main').innerHTML = '<div class="loading">C열에서 "1) …" 형식의 문항을 찾지 못했습니다.</div>';
       return;
     }
-    if (store('hideGeneral')) document.body.classList.add('hide-general');
     var saved = Number(store('page'));
     go(saved >= 0 && saved < state.pages.length ? saved : 0);
   }).catch(function (err) {
@@ -270,18 +270,6 @@
     qCard.appendChild(el('p', 'question', it.question));
     wrap.appendChild(qCard);
 
-    var st = el('div', 'section-title');
-    st.appendChild(el('span', '', '검토 결과 선택'));
-    var tg = el('button', 'toggle-general', document.body.classList.contains('hide-general') ? '수준 설명 보기' : '수준 설명 숨기기');
-    tg.type = 'button';
-    tg.onclick = function () {
-      var hidden = document.body.classList.toggle('hide-general');
-      store('hideGeneral', hidden);
-      tg.textContent = hidden ? '수준 설명 보기' : '수준 설명 숨기기';
-    };
-    st.appendChild(tg);
-    wrap.appendChild(st);
-
     state.data.levels.forEach(function (lv, i) {
       var text = it.options[i];
       var opt = el('button', 'option' + (text ? '' : ' empty') + (it.result === lv.key ? ' selected' : ''));
@@ -293,20 +281,18 @@
       head.appendChild(el('span', 'check', '✓ 선택됨'));
       opt.appendChild(head);
       opt.appendChild(el('div', 'option-text', text || '이 문항에는 해당 수준의 설명이 없습니다.'));
-      if (lv.text) opt.appendChild(el('div', 'option-general', lv.text));
       if (text) opt.onclick = function () { choose(it, lv.key); };
       wrap.appendChild(opt);
     });
 
-    wrap.appendChild(el('div', 'section-title', '검토 노트 (의견 메모)'));
+    wrap.appendChild(el('div', 'section-title', '검토 노트'));
     var ta = el('textarea');
     ta.id = 'noteInput';
-    ta.placeholder = '이 문항에 대한 의견을 메모하세요. 입력을 멈추면 자동 저장됩니다.';
+    ta.placeholder = '이 문항에 대한 의견을 메모하세요.';
     ta.value = it.note || '';
     ta.oninput = function () { scheduleNote(it, ta.value); };
     ta.onblur = flushNote;
     wrap.appendChild(ta);
-    wrap.appendChild(el('p', 'hint', '시트 H열에 저장됩니다. 선택한 수준은 G열에 기록되며, 같은 수준을 다시 누르면 선택이 해제됩니다.'));
   }
 
   function renderSummary(wrap) {
@@ -315,21 +301,39 @@
     crumb.appendChild(el('span', 'chip strong', s.label));
     wrap.appendChild(crumb);
 
-    var counts = countResults();
+    // 문항별 A/B/C 선택 결과를 자동 집계
     var card = el('div', 'card');
     card.appendChild(el('p', 'question', '검토 결과 요약'));
-    card.appendChild(el('div', 'stats',
-      'A ' + counts.A + ' · B ' + counts.B + ' · C ' + counts.C + ' · 미선택 ' + counts.none + ' (총 ' + state.data.items.length + '문항)'));
+    var tiles = el('div', 'tiles');
+    var groups = { A: [], B: [], C: [], none: [] };
+    state.data.items.forEach(function (it) {
+      var num = (it.question.match(/^\s*(\d+)/) || [])[1] || '?';
+      groups[it.result || 'none'].push(num);
+    });
+    [['A', 'A'], ['B', 'B'], ['C', 'C'], ['none', '미선택']].forEach(function (g) {
+      var t = el('div', 'tile ' + g[0]);
+      t.appendChild(el('div', 'tile-num', String(groups[g[0]].length)));
+      t.appendChild(el('div', 'tile-label', g[1]));
+      tiles.appendChild(t);
+    });
+    card.appendChild(tiles);
+    [['A', 'A 수준'], ['B', 'B 수준'], ['C', 'C 수준'], ['none', '미선택']].forEach(function (g) {
+      if (!groups[g[0]].length) return;
+      var line = el('div', 'sum-line');
+      line.appendChild(el('span', 'dot ' + (g[0] === 'none' ? '' : g[0]), g[0] === 'none' ? '–' : g[0]));
+      line.appendChild(el('span', '', groups[g[0]].join(', ') + '번 문항'));
+      card.appendChild(line);
+    });
     wrap.appendChild(card);
 
-    wrap.appendChild(el('div', 'section-title', '종합의견 (시트 C' + s.row + ')'));
+    wrap.appendChild(el('div', 'section-title', '종합의견'));
     var ta = el('textarea', 'big');
     ta.id = 'noteInput';
+    ta.placeholder = '종합의견을 작성하세요.';
     ta.value = s.text || '';
     ta.oninput = function () { scheduleSummary(ta.value); };
     ta.onblur = flushNote;
     wrap.appendChild(ta);
-    if (s.note) wrap.appendChild(el('p', 'hint', '메모: ' + s.note));
   }
 
   function updateChrome() {
@@ -389,7 +393,7 @@
     if (!pending) return;
     var job = pending; pending = null;
     job.apply();
-    call(job.fn, job.args).then(function () { toast('메모 저장됨'); })
+    call(job.fn, job.args).then(function () { toast('저장됨'); })
       .catch(function (err) { toast('메모 저장 실패: ' + (err.message || err), true); });
   }
   window.addEventListener('pagehide', flushNote);

@@ -37,12 +37,33 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('모니터링 웹앱')
     .addItem('웹앱 주소 보기', 'showWebAppUrl_')
+    .addItem('검토 초기화 (결과·노트 비우기)', 'resetReview_')
     .addToUi();
 }
 
 function showWebAppUrl_() {
   const url = ScriptApp.getService().getUrl();
   SpreadsheetApp.getUi().alert(url ? '웹앱 주소:\n' + url : '아직 배포되지 않았습니다. [배포 > 새 배포]에서 웹 앱으로 배포하세요.');
+}
+
+/** 모든 문항의 검토 결과를 '검토중'(미선택)으로, 검토 노트를 빈칸으로 되돌림 */
+function resetReview_() {
+  const ui = SpreadsheetApp.getUi();
+  const ok = ui.alert('검토 초기화', '모든 문항의 검토 결과(G열)와 검토 노트(H열)를 비웁니다. 계속할까요?', ui.ButtonSet.YES_NO);
+  if (ok !== ui.Button.YES) return;
+  withLock_(function () {
+    const sheet = getSheet_();
+    const C = CONFIG.COL;
+    const questions = sheet.getRange(1, C.QUESTION, sheet.getLastRow(), 1).getValues();
+    questions.forEach(function (q, i) {
+      const row = i + 1;
+      if (row > CONFIG.HEADER_ROW && QUESTION_PATTERN.test(str_(q[0]))) {
+        sheet.getRange(row, C.RESULT).setValue(CONFIG.PENDING);
+        sheet.getRange(row, C.NOTE).clearContent();
+      }
+    });
+  });
+  ui.alert('초기화했습니다. 웹앱을 새로고침하세요.');
 }
 
 function getSheet_() {
