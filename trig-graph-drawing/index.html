@@ -510,6 +510,17 @@
       return off.toDataURL("image/png");
     };
 
+    // 자동 판정용: 획 좌표를 수학 좌표 [x(라디안), y]로 변환 (drawPlane의 그래프 영역과 같은 계산)
+    b.toMath = () => {
+      const s = b.w / 400;
+      const L = 14 * s / b.w, R = 1 - L, T = 12 * s / b.h, B = 1 - 22 * s / b.h;
+      const r3 = (v) => Math.round(v * 1000) / 1000;
+      return b.strokes.map((st) => st.map((p) => [
+        r3(X_MIN + (p.x - L) / (R - L) * (X_MAX - X_MIN)),
+        r3(Y_MAX - (p.y - T) / (B - T) * (Y_MAX - Y_MIN))
+      ]));
+    };
+
     const pos = (e) => {
       const r = canvas.getBoundingClientRect();
       return {
@@ -519,7 +530,7 @@
     };
     canvas.addEventListener("pointerdown", (e) => {
       e.preventDefault();
-      canvas.setPointerCapture(e.pointerId);
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* 캡처 실패해도 그리기는 계속 */ }
       b.cur = [pos(e)];
       b.strokes.push(b.cur);
       b.redraw();
@@ -596,7 +607,11 @@
     if (!GAS_URL) { setStatus("제출 주소(GAS_URL)가 설정되지 않았습니다. 선생님께 알려 주세요.", "error"); return; }
     if (!confirm(studentId + " " + name + "\n제출하시겠습니까?")) return;
 
-    const payload = { studentId, name, images: boards.map((b) => b.toPNG()) };
+    const payload = {
+      studentId, name,
+      images: boards.map((b) => b.toPNG()),
+      strokes: boards.map((b) => b.toMath())
+    };
     const btn = $("#submitBtn");
     btn.disabled = true;
     setBadge("제출 중", "#ff5a30");
