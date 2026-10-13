@@ -27,6 +27,14 @@ const TOOLS = [
     description: "반복 규칙이 만들어내는 프랙탈 구조와 자기유사성을 탐구합니다.",
     tags: ["프랙탈", "반복", "도형"],
     url: "./sierpinski/"
+  },
+  {
+    title: "삼각함수 그래프 그리기",
+    subject: "대수",
+    symbol: "∿",
+    description: "호도법 좌표평면 위에 y = sin x, cos x, tan x 그래프를 손으로 그려 제출하는 활동지입니다.",
+    tags: ["삼각함수", "호도법", "활동지"],
+    url: "./trig-graph-drawing/"
   }
 ];
 

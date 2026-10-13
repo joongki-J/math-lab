@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>삼각함수 그래프 그리기</title>
+<style>
+  /* ===== 중기쌤의 수학 실험실 공통 테마 =====
+     이 :root 블록과 아래 "공통 셸" 영역은 모든 도구가 동일하게 유지합니다.
+     도구별 CSS는 파일 아래쪽 "도구 전용" 영역에만 추가하세요. */
+  :root{
+    --bg:#f2f0e9;
+    --panel:#fbf9f3;
+    --panel-2:#f4f1e9;
+    --line:#d8d2c7;
+    --border-soft:#eee9df;
+    --text:#15171a;
+    --muted:#6b6f74;
+    --faint:#9a958a;
+    --accent:#ff5a30;
+    --accent-weak:rgba(255,90,48,.14);
+    --lime:#d9f24f;
+    --shadow:0 10px 28px rgba(21,23,26,.055);
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      linear-gradient(rgba(21,23,26,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(21,23,26,.035) 1px, transparent 1px),
+      var(--bg);
+    background-size:34px 34px;
+    color:var(--text);
+    font-family:Pretendard,"Apple SD Gothic Neo","Noto Sans KR",-apple-system,BlinkMacSystemFont,sans-serif;
+    letter-spacing:-.015em;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  button,input,select{font:inherit;color:inherit}
+  .num{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+  .app{width:100%;max-width:1180px;margin:0 auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+
+  /* ---- 공통 셸: 상단바 ---- */
+  .topbar{
+    min-height:72px;
+    display:flex;
+    gap:14px;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px 14px;
+    background:rgba(242,240,233,.90);
+    border:1px solid var(--line);
+    border-radius:18px;
+    backdrop-filter:blur(14px);
+  }
+  .brand-area{display:flex;align-items:center;gap:18px;min-width:0}
+  .home-link{
+    display:flex;align-items:center;gap:10px;flex:none;
+    color:var(--text);text-decoration:none;
+    padding:7px 10px 7px 8px;border-radius:12px;
+    transition:background .18s ease;
+  }
+  .home-link:hover{background:#e7e3d9}
+  .home-arrow{
+    width:31px;height:31px;border:1px solid #c9c4b8;border-radius:50%;
+    display:grid;place-items:center;font-size:16px;line-height:1;background:#fbf9f3;
+  }
+  .brand-copy{display:block;line-height:1.15}
+  .brand-copy strong{display:block;font-size:14px;font-weight:800;letter-spacing:-.035em}
+  .brand-copy small{
+    display:block;margin-top:4px;color:#8a8d90;
+    font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+    font-size:7.5px;letter-spacing:.13em;white-space:nowrap;
+  }
+  .top-divider{width:1px;height:34px;background:#d3cec3;flex:none}
+  .title-row{display:block;min-width:0}
+  .eyebrow{
+    display:flex;align-items:center;gap:7px;margin-bottom:4px;
+    color:#7b7770;font-size:10px;font-weight:750;white-space:nowrap;
+  }
+  .eyebrow span{display:block;width:18px;height:2px;background:var(--accent)}
+  h1{
+    font-size:clamp(18px,1.25vw,24px);
+    margin:0;
+    font-weight:800;letter-spacing:-.04em;white-space:nowrap;
+  }
+  h1 em{
+    font-style:normal;font-weight:500;
+    background:linear-gradient(transparent 60%,var(--lime) 0);
+    padding:0 .04em;
+  }
+  .subtitle{margin:4px 0 0;color:#666b6f;font-size:11.5px}
+  .badge{
+    display:inline-flex;align-items:center;gap:7px;flex:none;
+    background:#15171a;color:#fff;border:0;
+    border-radius:999px;padding:8px 12px;font-weight:700;font-size:12px;white-space:nowrap;
+  }
+  .dot{width:9px;height:9px;border-radius:50%;background:#73c48f}
+
+  /* ---- 공통 셸: 패널 ----
+     기본은 "넓은 그림 영역 + 좁은 설정 영역" 2단입니다.
+     패널 수가 다르면 grid-template-columns만 바꾸고, 좁은 화면에서 1단으로
+     떨어지는 @media (max-width:900px) 규칙은 남겨 두세요. */
+  .workspace{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr);gap:10px}
+  .panel{
+    min-width:0;
+    display:flex;flex-direction:column;
+    background:rgba(251,249,243,.96);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .panel-head{
+    flex:0 0 auto;
+    padding:12px 14px;
+    border-bottom:1px solid var(--line);
+    background:rgba(247,244,236,.92);
+  }
+  .panel-title{
+    font-size:15px;font-weight:800;letter-spacing:-.025em;
+    position:relative;padding-left:10px;
+  }
+  .panel-title::before{
+    content:"";position:absolute;left:0;top:.15em;bottom:.15em;
+    width:3px;border-radius:3px;background:var(--accent);
+  }
+  .panel-desc{color:#74716b;font-size:11.5px;margin-top:5px;line-height:1.45}
+  .panel-body{flex:1;min-height:0;padding:14px}
+
+  /* ---- 공통 셸: 버튼 ---- */
+  .btn{
+    border:1px solid #c9c4b8;background:#fbf9f3;color:#15171a;
+    border-radius:999px;font-weight:700;font-size:12.5px;
+    padding:9px 14px;cursor:pointer;line-height:1;
+    transition:background .15s ease,border-color .15s ease,transform .15s ease;
+  }
+  .btn:hover:not(:disabled){transform:translateY(-1px);border-color:#15171a;background:#f2efe6}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+  .btn.primary{background:#15171a;color:#fff;border-color:#15171a}
+  .btn.primary:hover:not(:disabled){background:#2b2e31}
+  .btn.danger{color:#a73b2c}
+  .btn.icon-btn{width:38px;height:38px;padding:0;border-radius:10px;font-size:18px;display:grid;place-items:center}
+
+  /* ---- 공통 셸: 그림 영역 (캔버스·SVG) ---- */
+  .chart-wrap{background:#fff;border:1px solid #e3ded4;border-radius:12px;overflow:hidden;position:relative}
+  .chart-wrap canvas,.chart-wrap svg{display:block;width:100%;height:100%}
+
+  /* ---- 공통 셸: 입력·지표·안내 (쓰지 않는 것은 지우세요) ---- */
+  .controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+  .control{display:flex;flex-direction:column;gap:5px}
+  .control label{font-size:11px;color:var(--muted);font-weight:800}
+  .control input{
+    width:100%;padding:9px 10px;font-weight:700;
+    border:1px solid #d3cec3;background:#fff;color:var(--text);border-radius:10px;
+  }
+  .control input:focus{outline:3px solid rgba(217,242,79,.42);border-color:#9aa64b}
+  .control input[type="range"]{
+    padding:0;height:22px;border:0;border-radius:0;background:transparent;
+    accent-color:#15171a;cursor:pointer;
+  }
+  .checkbox-control{
+    justify-content:center;min-height:58px;padding:8px 10px;
+    border:1px solid var(--line);background:var(--panel-2);border-radius:12px;
+  }
+  .checkbox-control label{display:flex;align-items:center;gap:8px;color:var(--text);cursor:pointer;font-size:11px}
+  .checkbox-control input{width:17px;height:17px;padding:0;accent-color:#15171a;cursor:pointer}
+
+  .metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .metric{background:var(--panel-2);border:1px solid #ddd7cc;border-radius:11px;padding:8px 9px;min-width:0}
+  .metric .label{color:#77736d;font-size:10px;font-weight:800;margin-bottom:3px}
+  .metric .value{
+    font-size:15px;font-weight:850;color:var(--text);
+    font-variant-numeric:tabular-nums;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+
+  .formula{
+    background:#15171a;color:#f6f2e9;border:1px solid #15171a;border-radius:12px;
+    padding:9px 10px;line-height:1.55;font-size:12px;
+    font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow:auto;
+  }
+  .note{
+    padding:10px 12px;border-radius:10px;
+    background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;
+    font-size:11px;line-height:1.5;
+  }
+  .note b{color:#7c2d12;font-weight:800}
+  .status{min-height:19px;font-size:11px;line-height:1.4;font-weight:750;color:var(--muted)}
+  .status.ok{color:#32724f}
+  .status.error{color:#b44634}
+
+  .legend{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+  .legend-item i{width:11px;height:11px;border-radius:3px;flex:none}
+
+  /* ---- 공통 셸: 반응형 (이 3개 블록은 그대로 유지) ----
+     주의: .topbar에 align-items:stretch를 쓰면 알약 모양 .badge가
+     줄바꿈된 제목 높이만큼 세로로 늘어나 거대한 원처럼 깨집니다. */
+  @media (max-width:1080px){
+    .brand-copy small{display:none}
+    .brand-copy strong{font-size:13px}
+    .top-divider{height:28px}
+  }
+  @media (max-width:900px){
+    .workspace{grid-template-columns:1fr}
+  }
+  @media (max-width:820px){
+    .topbar{align-items:flex-start}
+    .brand-area{align-items:flex-start}
+    .home-link{padding-left:2px}
+    .top-divider{display:none}
+    .brand-copy{display:none}
+    .title-row{display:block}
+    h1{white-space:normal}
+    .eyebrow{white-space:normal}
+    .badge{display:none}
+  }
+  @media (max-width:520px){
+    .app{padding:7px}
+    .topbar{border-radius:14px;padding:9px 10px}
+    .home-arrow{width:34px;height:34px}
+    h1{font-size:20px;line-height:1.25}
+    .subtitle{font-size:11px;white-space:normal}
+    .panel{border-radius:14px}
+    .panel-head{padding:12px}
+    .btn{min-height:40px}
+    .controls{grid-template-columns:1fr}
+  }
+
+  /* ===== 도구 전용 CSS는 여기부터 ===== */
+  .side{display:flex;flex-direction:column;gap:10px;position:sticky;top:12px;align-self:start;min-width:0}
+  .questions{display:flex;flex-direction:column;gap:10px;min-width:0}
+  .workspace{align-items:start}
+
+  .q-title{font-family:"Times New Roman",serif;font-style:italic;font-size:17px;letter-spacing:0;font-weight:700}
+  .q-ko{font-size:11.5px;font-weight:700;color:var(--faint);margin-left:6px}
+  .board{aspect-ratio:8/5}
+  .board canvas{touch-action:none;cursor:crosshair}
+  .board-tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
+  .board-tools .hint{margin-left:auto;font-size:11px;color:var(--faint)}
+
+  .progress{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:12px}
+  .progress .metric .value{font-size:13px}
+  .progress .metric.done{background:var(--accent-weak);border-color:#ffc2b0}
+  .submit-btn{width:100%;padding:13px 14px;font-size:14px}
+
+  .modal-back{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(21,23,26,.42)}
+  .modal-back.show{display:flex}
+  .modal{width:100%;max-width:340px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .modal .panel-body{text-align:center;padding:22px 18px 18px}
+  .modal-msg{font-size:12.5px;color:var(--muted);line-height:1.6;white-space:pre-line;margin:10px 0 16px}
+  .modal-icon{font-size:30px;line-height:1}
+  .spinner{width:34px;height:34px;margin:0 auto;border:3px solid var(--border-soft);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* 1단으로 접힐 때: 학생 정보 → 문항 ②③④ → 제출 순서 */
+  @media (max-width:900px){
+    .side{display:contents}
+    .info-panel{order:-1}
+    .submit-panel{order:1}
+  }
+  @media (max-width:520px){
+    .board-tools .hint{display:none}
+    .board-tools .btn{flex:1}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <div class="brand-area">
+      <a class="home-link" href="../#tools" aria-label="중기쌤의 수학 실험실 메인으로">
+        <span class="home-arrow">←</span>
+        <span class="brand-copy">
+          <strong>중기쌤의 수학 실험실</strong>
+          <small>MATHEMATICS LABORATORY</small>
+        </span>
+      </a>
+      <span class="top-divider" aria-hidden="true"></span>
+      <div class="title-row">
+        <div class="eyebrow"><span></span>대수 · 삼각함수</div>
+        <h1>삼각함수 <em>그래프 그리기</em></h1>
+        <p class="subtitle">좌표평면 위에 sin·cos·tan 그래프를 손으로 그려 제출합니다.</p>
+      </div>
+    </div>
+    <div class="badge"><span class="dot" id="stateDot"></span><span id="stateBadge">준비됨</span></div>
+  </div>
+
+  <section class="workspace">
+    <div class="questions" id="questions"></div>
+
+    <aside class="side">
+      <article class="panel info-panel">
+        <div class="panel-head">
+          <div class="panel-title">① 학생 정보</div>
+          <div class="panel-desc">학번은 학년+반+번호 5자리입니다. (예: 10314)</div>
+        </div>
+        <div class="panel-body">
+          <div class="controls">
+            <div class="control">
+              <label for="studentId">학번</label>
+              <input id="studentId" class="num" type="text" inputmode="numeric" maxlength="5" placeholder="10314" autocomplete="off">
+            </div>
+            <div class="control">
+              <label for="name">성명</label>
+              <input id="name" type="text" placeholder="이름" autocomplete="off">
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel submit-panel">
+        <div class="panel-head">
+          <div class="panel-title">⑤ 제출</div>
+          <div class="panel-desc">세 그래프를 모두 그린 뒤 제출하세요.</div>
+        </div>
+        <div class="panel-body">
+          <div class="progress" id="progress"></div>
+          <button type="button" class="btn primary submit-btn" id="submitBtn">제출하기</button>
+          <div class="status" id="status" style="margin-top:8px"></div>
+        </div>
+      </article>
+    </aside>
+  </section>
+</div>
+
+<div class="modal-back" id="modal">
+  <div class="modal">
+    <div class="panel-head"><div class="panel-title" id="modalTitle"></div></div>
+    <div class="panel-body">
+      <div id="modalIcon" class="modal-icon"></div>
+      <div class="modal-msg" id="modalMsg"></div>
+      <button type="button" class="btn primary submit-btn" id="modalBtn">확인</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ===== 설정 =====
+  // Apps Script 웹앱 배포 URL (배포 → 웹 앱 → 액세스 권한: 모든 사용자)
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbyXotaEuslli_PWBL8vGg_jjbGvQZN2NdjqHw5dkZOUJXr6Say5vihh32UJDiCCu1y4/exec";
+
+  const QUESTIONS = [
+    { label: "y = sin x", ko: "사인함수", short: "sin" },
+    { label: "y = cos x", ko: "코사인함수", short: "cos" },
+    { label: "y = tan x", ko: "탄젠트함수", short: "tan" }
+  ];
+  const NUMS = ["②", "③", "④"];
+  const X_MIN = -2 * Math.PI, X_MAX = 2 * Math.PI, Y_MIN = -2, Y_MAX = 2;
+  const EXPORT_W = 800, EXPORT_H = 500;
+  const PEN = "#ff5a30";
+  const MAX_TRIES = 3;
+
+  const $ = (s) => document.querySelector(s);
+  let boards = [];
+
+  // ===== 좌표평면 =====
+  function drawPlane(ctx, w, h) {
+    const s = w / 400;
+    const L = 14 * s, R = w - 14 * s, T = 12 * s, B = h - 22 * s;
+    const X = (x) => L + (x - X_MIN) / (X_MAX - X_MIN) * (R - L);
+    const Y = (y) => T + (Y_MAX - y) / (Y_MAX - Y_MIN) * (B - T);
+    // 휴대폰처럼 좁은 화면에서도 눈금 글씨가 읽히도록 최소 크기 보장
+    const font = (px, it) => (it ? "italic " : "") + Math.max(px * s, px * .95) + 'px "Times New Roman", serif';
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, w, h);
+
+    // 보조 격자 π/4, 0.5 · 주 격자 π/2, 1
+    ctx.lineWidth = 1 * s;
+    ctx.strokeStyle = "#f1ede4";
+    ctx.beginPath();
+    for (let k = -8; k <= 8; k++) { const gx = X(k * Math.PI / 4); ctx.moveTo(gx, T); ctx.lineTo(gx, B); }
+    for (let j = -4; j <= 4; j++) { const gy = Y(j / 2); ctx.moveTo(L, gy); ctx.lineTo(R, gy); }
+    ctx.stroke();
+    ctx.strokeStyle = "#ddd7cc";
+    ctx.beginPath();
+    for (let k = -4; k <= 4; k++) { const gx = X(k * Math.PI / 2); ctx.moveTo(gx, T); ctx.lineTo(gx, B); }
+    for (let j = -2; j <= 2; j++) { const gy = Y(j); ctx.moveTo(L, gy); ctx.lineTo(R, gy); }
+    ctx.stroke();
+
+    // 축과 화살표
+    const ox = X(0), oy = Y(0);
+    ctx.strokeStyle = ctx.fillStyle = "#15171a";
+    ctx.lineWidth = 1.5 * s;
+    ctx.beginPath();
+    ctx.moveTo(L - 6 * s, oy); ctx.lineTo(R + 4 * s, oy);
+    ctx.moveTo(ox, B + 4 * s); ctx.lineTo(ox, T - 4 * s);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(R + 9 * s, oy); ctx.lineTo(R + 2 * s, oy - 4 * s); ctx.lineTo(R + 2 * s, oy + 4 * s); ctx.closePath();
+    ctx.moveTo(ox, T - 9 * s); ctx.lineTo(ox - 4 * s, T - 2 * s); ctx.lineTo(ox + 4 * s, T - 2 * s); ctx.closePath();
+    ctx.fill();
+
+    // x축 눈금 (호도법)
+    const xl = ["-2π", "-3π/2", "-π", "-π/2", "", "π/2", "π", "3π/2", "2π"];
+    ctx.font = font(9.5);
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    ctx.lineWidth = 1.2 * s;
+    for (let k = -4; k <= 4; k++) {
+      const gx = X(k * Math.PI / 2), t = xl[k + 4];
+      ctx.strokeStyle = "#15171a";
+      ctx.beginPath(); ctx.moveTo(gx, oy - 3 * s); ctx.lineTo(gx, oy + 3 * s); ctx.stroke();
+      if (!t) continue;
+      const tw = ctx.measureText(t).width;
+      ctx.fillStyle = "rgba(255,255,255,.88)";
+      ctx.fillRect(gx - tw / 2 - 1.5 * s, oy + 4 * s, tw + 3 * s, 11 * s);
+      ctx.fillStyle = "#3a3d41";
+      ctx.fillText(t, gx, oy + 5 * s);
+    }
+    // y축 눈금
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    for (let j = -2; j <= 2; j++) {
+      if (!j) continue;
+      const gy = Y(j);
+      ctx.beginPath(); ctx.moveTo(ox - 3 * s, gy); ctx.lineTo(ox + 3 * s, gy); ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,.88)";
+      ctx.fillRect(ox - 16 * s, gy - 5.5 * s, 11 * s, 11 * s);
+      ctx.fillStyle = "#3a3d41";
+      ctx.fillText(String(j), ox - 5 * s, gy);
+    }
+    ctx.textAlign = "right"; ctx.textBaseline = "top";
+    ctx.fillText("O", ox - 4 * s, oy + 4 * s);
+    ctx.font = font(11, true);
+    ctx.fillStyle = "#15171a";
+    ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+    ctx.fillText("x", R + 1 * s, oy - 5 * s);
+    ctx.textBaseline = "top";
+    ctx.fillText("y", ox + 6 * s, T - 10 * s);
+  }
+
+  // 획은 0~1 정규화 좌표로 저장 → 화면 크기가 바뀌어도 유지
+  function drawStrokes(ctx, w, h, strokes) {
+    ctx.strokeStyle = PEN;
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.lineWidth = Math.max(2.5, w / 160);
+    for (const st of strokes) {
+      if (!st.length) continue;
+      ctx.beginPath();
+      ctx.moveTo(st[0].x * w, st[0].y * h);
+      if (st.length === 1) ctx.lineTo(st[0].x * w + .1, st[0].y * h + .1);
+      for (let i = 1; i < st.length; i++) {
+        const p = st[i - 1], q = st[i];
+        ctx.quadraticCurveTo(p.x * w, p.y * h, (p.x + q.x) / 2 * w, (p.y + q.y) / 2 * h);
+      }
+      const last = st[st.length - 1];
+      ctx.lineTo(last.x * w, last.y * h);
+      ctx.stroke();
+    }
+  }
+
+  // ===== 문항 보드 =====
+  function createBoard(i, q) {
+    const el = document.createElement("article");
+    el.className = "panel";
+    el.innerHTML =
+      '<div class="panel-head">' +
+      '  <div class="panel-title">' + NUMS[i] + ' <span class="q-title">' + q.label + '</span><span class="q-ko">' + q.ko + '</span></div>' +
+      '  <div class="panel-desc">가로축 −2π ~ 2π (호도법), 세로축 −2 ~ 2</div>' +
+      '</div>' +
+      '<div class="panel-body">' +
+      '  <div class="chart-wrap board"><canvas></canvas></div>' +
+      '  <div class="board-tools">' +
+      '    <button type="button" class="btn" data-act="undo">↶ 되돌리기</button>' +
+      '    <button type="button" class="btn danger" data-act="clear">지우고 다시 그리기</button>' +
+      '    <span class="hint">손가락·마우스로 그리기</span>' +
+      '  </div>' +
+      '</div>';
+    $("#questions").appendChild(el);
+
+    const canvas = el.querySelector("canvas");
+    const ctx = canvas.getContext("2d");
+    const b = { canvas, strokes: [], cur: null, w: 0, h: 0 };
+    let pending = false;
+
+    b.render = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const r = canvas.getBoundingClientRect();
+      b.w = r.width; b.h = r.height;
+      canvas.width = Math.round(r.width * dpr);
+      canvas.height = Math.round(r.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawPlane(ctx, b.w, b.h);
+      drawStrokes(ctx, b.w, b.h, b.strokes);
+    };
+    b.redraw = () => {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => {
+        pending = false;
+        drawPlane(ctx, b.w, b.h);
+        drawStrokes(ctx, b.w, b.h, b.strokes);
+        updateProgress();
+      });
+    };
+    // 저장용 PNG: 흰 배경 + 좌표평면 + 그림
+    b.toPNG = () => {
+      const off = document.createElement("canvas");
+      off.width = EXPORT_W; off.height = EXPORT_H;
+      const octx = off.getContext("2d");
+      drawPlane(octx, EXPORT_W, EXPORT_H);
+      drawStrokes(octx, EXPORT_W, EXPORT_H, b.strokes);
+      return off.toDataURL("image/png");
+    };
+
+    const pos = (e) => {
+      const r = canvas.getBoundingClientRect();
+      return {
+        x: Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1),
+        y: Math.min(Math.max((e.clientY - r.top) / r.height, 0), 1)
+      };
+    };
+    canvas.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      canvas.setPointerCapture(e.pointerId);
+      b.cur = [pos(e)];
+      b.strokes.push(b.cur);
+      b.redraw();
+    });
+    canvas.addEventListener("pointermove", (e) => {
+      if (!b.cur) return;
+      e.preventDefault();
+      const evs = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
+      for (const ev of evs) b.cur.push(pos(ev));
+      b.redraw();
+    });
+    const end = () => { b.cur = null; };
+    ["pointerup", "pointercancel", "pointerleave"].forEach((t) => canvas.addEventListener(t, end));
+
+    el.querySelector('[data-act="undo"]').addEventListener("click", () => { b.strokes.pop(); b.redraw(); });
+    el.querySelector('[data-act="clear"]').addEventListener("click", () => {
+      if (b.strokes.length && confirm(NUMS[i] + " " + q.label + " 그림을 모두 지울까요?")) { b.strokes = []; b.redraw(); }
+    });
+    return b;
+  }
+
+  // ===== 상태 표시 =====
+  function updateProgress() {
+    $("#progress").innerHTML = boards.map((b, i) =>
+      '<div class="metric' + (b.strokes.length ? " done" : "") + '">' +
+      '<div class="label">' + NUMS[i] + " " + QUESTIONS[i].short + '</div>' +
+      '<div class="value">' + (b.strokes.length ? "그림 완료" : "미작성") + '</div></div>'
+    ).join("");
+  }
+  function setBadge(text, color) {
+    $("#stateBadge").textContent = text;
+    $("#stateDot").style.background = color || "";
+  }
+  function setStatus(text, cls) {
+    const s = $("#status");
+    s.textContent = text || "";
+    s.className = "status" + (cls ? " " + cls : "");
+  }
+  function showModal(type, title, msg, onOk) {
+    $("#modalTitle").textContent = title;
+    $("#modalIcon").innerHTML = type === "loading" ? '<div class="spinner"></div>' : (type === "ok" ? "🎉" : "⚠️");
+    $("#modalMsg").textContent = msg || "";
+    const btn = $("#modalBtn");
+    btn.style.display = type === "loading" ? "none" : "";
+    btn.onclick = () => { $("#modal").classList.remove("show"); if (onOk) onOk(); };
+    $("#modal").classList.add("show");
+  }
+
+  // ===== 제출 (혼잡·네트워크 오류 시 자동 재시도) =====
+  async function post(payload) {
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      // text/plain 으로 보내야 CORS 사전 요청(preflight) 없이 Apps Script에 전달됩니다
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw Object.assign(new Error("서버 응답 오류 (" + res.status + ")"), { retry: true });
+    const data = await res.json();
+    if (!data.ok) throw Object.assign(new Error(data.error || "저장에 실패했습니다."), { retry: !!data.retry });
+    return data;
+  }
+
+  async function submit() {
+    const studentId = $("#studentId").value.trim();
+    const name = $("#name").value.trim();
+    if (!/^\d{5}$/.test(studentId)) { setStatus("학번은 5자리 숫자로 입력하세요. (예: 10314)", "error"); $("#studentId").focus(); return; }
+    if (!name) { setStatus("성명을 입력하세요.", "error"); $("#name").focus(); return; }
+    const empty = boards.findIndex((b) => !b.strokes.length);
+    if (empty !== -1) {
+      setStatus(NUMS[empty] + " " + QUESTIONS[empty].label + " 그래프를 그려 주세요.", "error");
+      boards[empty].canvas.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (!GAS_URL) { setStatus("제출 주소(GAS_URL)가 설정되지 않았습니다. 선생님께 알려 주세요.", "error"); return; }
+    if (!confirm(studentId + " " + name + "\n제출하시겠습니까?")) return;
+
+    const payload = { studentId, name, images: boards.map((b) => b.toPNG()) };
+    const btn = $("#submitBtn");
+    btn.disabled = true;
+    setBadge("제출 중", "#ff5a30");
+    setStatus("");
+
+    for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
+      showModal("loading", "제출 중", attempt === 1 ? "잠시만 기다려 주세요." : "제출이 몰려 다시 시도하는 중입니다… (" + attempt + "/" + MAX_TRIES + ")");
+      try {
+        const res = await post(payload);
+        btn.disabled = false;
+        setBadge("제출 완료");
+        setStatus(res.sheetName + " 탭 " + res.row + "행에 저장되었습니다.", "ok");
+        showModal("ok", "제출 완료", res.message, () => {
+          boards.forEach((b) => { b.strokes = []; b.redraw(); });
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+        return;
+      } catch (err) {
+        // fetch 자체 실패(TypeError)는 네트워크·혼잡으로 보고 재시도
+        const retry = err.retry || err instanceof TypeError;
+        if (!retry || attempt === MAX_TRIES) {
+          btn.disabled = false;
+          setBadge("제출 실패", "#b44634");
+          setStatus(err.message, "error");
+          showModal("error", "제출 실패", err.message + "\n그림은 그대로 남아 있으니 다시 제출해 주세요.");
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 1500 + Math.random() * 2500));
+      }
+    }
+  }
+
+  // ===== 초기화 =====
+  boards = QUESTIONS.map((q, i) => createBoard(i, q));
+  boards.forEach((b) => b.render());
+  updateProgress();
+  if (!GAS_URL) setStatus("제출 주소(GAS_URL)가 아직 설정되지 않았습니다.", "error");
+
+  let rt;
+  window.addEventListener("resize", () => {
+    clearTimeout(rt);
+    rt = setTimeout(() => boards.forEach((b) => b.render()), 150);
+  });
+  $("#studentId").addEventListener("input", (e) => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 5); });
+  $("#submitBtn").addEventListener("click", submit);
+})();
+</script>
+</body>
+</html>
