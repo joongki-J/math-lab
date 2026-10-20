@@ -22,7 +22,8 @@
     }
     .title-bar h1 { margin: 0; font-size: 1.15rem; line-height: 1.5; word-break: keep-all; }
     .info { background: #fff; margin-top: 12px; padding: 12px 14px; border-radius: 6px; font-size: 0.92rem; line-height: 1.7; }
-    .info b { display: inline-block; width: 44px; }
+    .info div { display: flex; }
+    .info b { flex: 0 0 44px; }
     form { background: #fff; margin-top: 12px; padding: 16px 14px; border-radius: 6px; }
     label { display: block; font-weight: 600; font-size: 0.92rem; margin: 14px 0 6px; }
     label:first-child { margin-top: 0; }
@@ -60,6 +61,7 @@
   <div class="info">
     <div><b>일시</b><?= config.DATE ?></div>
     <div><b>장소</b><?= config.PLACE ?></div>
+    <div><b>내용</b><?= config.CONTENT ?></div>
   </div>
 
   <form id="form" autocomplete="off">
