@@ -10,6 +10,7 @@ const CONFIG = {
   DATE: '2026.10.20.(화) 17:30~18:50',
   PLACE: '경북대학교사범대학부설고등학교 및 인근 회의실',
   CONTENT: '수업-평가 컨설팅 결과 공유 및 교수학습 및 평가 운영계획 성장나침반 개선 방향 수립',
+  SHEET_ID: '1MPf44yIXbcQOkMUt3ifO78P519c5ZAKeb9DWsScegfQ', // 비워두면 이 스크립트가 붙은 시트 사용
   SHEET_NAME: '등록부',
   FOLDER_NAME: '협의회 서명 이미지', // 서명 원본 PNG 보관용 드라이브 폴더
 };
@@ -93,7 +94,9 @@ function submitSignature(form) {
 
 // ===== 내부 함수 =====
 function getSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = CONFIG.SHEET_ID
+    ? SpreadsheetApp.openById(CONFIG.SHEET_ID)
+    : SpreadsheetApp.getActiveSpreadsheet();
   return ss.getSheetByName(CONFIG.SHEET_NAME) || ss.insertSheet(CONFIG.SHEET_NAME);
 }
 
