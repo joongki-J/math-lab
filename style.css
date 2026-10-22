@@ -179,12 +179,9 @@ button{cursor:pointer}
 .hero-art{width:400px;max-width:100%;justify-self:end}
 .hero-art canvas{
   width:100%;
-  aspect-ratio:800/940;
+  aspect-ratio:500/588;
   display:block;
-  border:1px solid #d8d2c7;
-  border-radius:16px;
-  background:#fbf9f3;
-  box-shadow:0 10px 28px rgba(21,23,26,.055);
+  mix-blend-mode:multiply;
 }
 
 /* ---------- tools ---------- */

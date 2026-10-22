@@ -1,16 +1,16 @@
 /* ---------- 히어로 모션: 연필 선 하나가 수학 도형이 되었다가 돌아오는 12초 루프 ----------
    선 → 베지어 곡선 → 사인파 → 원·삼각형·사각형·육각형 → 벌집 → 곱셈 원 → 다시 선.
-   사이트 톤(따뜻한 종이 + 흑연 + 오렌지 포인트)을 지키고, 컷·페이드 없이 모양만 바뀐다.
+   배경 없이 히어로 격자 위에 바로 그려서 사진 칸처럼 떨어져 보이지 않는다.
+   흑연 + 오렌지 포인트만 쓰고, 컷·페이드 없이 모양만 바뀐다.
    마지막 프레임 = 첫 프레임. */
 (() => {
   const canvas = document.querySelector("#reelCanvas");
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
 
-  const W = 800, H = 940, CX = 400, CY = 450, LOOP = 12, HALF = 230;
+  const W = 500, H = 588, CX = 250, CY = 262, LOOP = 12, HALF = 230;
   const MONO = '"IBM Plex Mono", ui-monospace, monospace';
-  const INK = { bg: "#fbf9f3", grid: "21,23,26", main: "#15171a", accent: "#ff5a30", muted: "#6b6f74" };
-  const NAMES = ["CURVE", "MORPH", "TILE", "CHORD", "MODULO", "RETURN"];
+  const INK = { main: "#15171a", accent: "#ff5a30", muted: "#6b6f74" };
 
   /* ---------- 이징 ---------- */
   const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -124,7 +124,7 @@
   function tile(t, ops) {
     const back = S(t, 5.5, 16);                      // 다시 가운데로 모인다
     const rc = lerp(lerp(165, HR, S(t, 4.0)), 165, back);
-    const sweep = lerp(-150, 950, span(t, 4.95, 5.45));
+    const sweep = lerp(-100, W + 100, span(t, 4.95, 5.45));
     const erase = 1 - span(t, 5.6, 5.95);            // 빗금이 한 줄씩 지워진다
     for (const c of CELLS) {
       let x = 0, y = 0, r = rc;
@@ -154,14 +154,14 @@
     if (t < 10.3) ops.push(shape(mix(polar(regR(6, 165, -Math.PI / 2)), polar(() => RC), toCircle), { w: 3 }));
     const k = kAt(t), cnt = Math.floor(M * span(t, 6.45, 7.0)), segs = [];
     for (let i = 0; i < cnt; i++) segs.push([...pt(i), ...pt(i * k)]);
-    ops.push({ k: "segs", segs, c: "main", w: 0.9, alpha: 0.55 });
+    ops.push({ k: "segs", segs, c: "main", w: 0.9, alpha: 0.42 });
     if (t >= 6.95 && t < 10.05) {
       const li = ((t - 6.95) * 26) % M, a = pt(li), b = pt(li * k);
       ops.push({ k: "segs", segs: [[...a, ...b]], c: "accent", w: 2.8, alpha: 1 }, { k: "dot", x: a[0], y: a[1], r: 7, c: "accent" });
     }
     const s = `i ↦ (${k.toFixed(2)} × i) mod ${M}`;
     const n = Math.round(s.length * span(t, 6.95, 7.3) * (1 - span(t, 10.0, 10.3)));
-    ops.push(text(s.slice(0, n), CX, CY + RC + 66, { align: "center", size: 22, track: 0.02 }));
+    ops.push(text(s.slice(0, n), CX, CY + RC + 58, { align: "center", size: 15, track: 0.02 }));
   }
 
   /* ---------- 6마디 RETURN (10~12초): 원이 줄어들고 펴져 처음의 선으로 ---------- */
@@ -171,12 +171,6 @@
     ops.push(path(pts, { closed: uncurl > 0.97 }));
   }
 
-  function corner(t, ops) {
-    const b = Math.floor(t / 2), beat = Math.floor(t * 2) + 1;
-    ops.push(text(`FIG. ${String(b + 1).padStart(2, "0")} — ${NAMES[b]}`, 60, 70));
-    ops.push(text(`BEAT ${String(beat).padStart(2, "0")} / 24`, 740, H - 52, { align: "right" }));
-  }
-
   function build(t) {
     const ops = [];
     if (t < 2) curve(t, ops);
@@ -184,12 +178,11 @@
     else if (t < 6) tile(t, ops);
     if (t >= 6 && t < 10.6) chords(t, ops);
     if (t >= 10.3) unwind(t, ops);
-    corner(t, ops);
     return ops;
   }
 
   /* ---------- 렌더러: 연필로 그어 종이에 곱한다 ---------- */
-  let K = 1, PH = 0, BG = null, TOOTH = null;
+  let K = 1, PH = 0, TOOTH = null;
   const layer = document.createElement("canvas"), lg = layer.getContext("2d");
   const col = c => INK[c];
 
@@ -263,7 +256,7 @@
     PH = Math.floor(t * 8);
     const ops = build(t);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(BG, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     lg.setTransform(1, 0, 0, 1, 0, 0); lg.clearRect(0, 0, layer.width, layer.height); lg.setTransform(K, 0, 0, K, 0, 0);
     ops.forEach((o, idx) => {
       if (o.k === "path") pencil(lg, o.pts, o.closed, o.w, col(o.c), o.alpha, idx * 0.37);
@@ -276,29 +269,11 @@
     lg.setTransform(1, 0, 0, 1, 0, 0);
     lg.globalCompositeOperation = "destination-out"; lg.fillStyle = TOOTH; lg.fillRect(0, 0, layer.width, layer.height);
     lg.globalCompositeOperation = "source-over";
-    ctx.globalCompositeOperation = "multiply"; ctx.drawImage(layer, 0, 0); ctx.globalCompositeOperation = "source-over";
+    ctx.drawImage(layer, 0, 0);   // 캔버스는 투명: 히어로 격자 위에 바로 그어진다(CSS에서 multiply)
   }
 
-  /* ---------- 종이 준비: 메인 히어로와 같은 34px 격자 ---------- */
+  /* ---------- 종이 결 준비 ---------- */
   function prepare() {
-    const cw = canvas.width, ch = canvas.height;
-    BG = document.createElement("canvas"); BG.width = cw; BG.height = ch;
-    const g = BG.getContext("2d");
-    g.fillStyle = INK.bg; g.fillRect(0, 0, cw, ch);
-    const img = g.getImageData(0, 0, cw, ch), d = img.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const v = (Math.random() - 0.5) * 9;
-      d[i] += v; d[i + 1] += v; d[i + 2] += v;
-    }
-    g.putImageData(img, 0, 0);
-    g.setTransform(K, 0, 0, K, 0, 0);
-    const step = 68;   // 캔버스 논리 800px = 화면 400px → 34px 격자
-    for (let i = -8; i <= 8; i++) {
-      g.strokeStyle = `rgba(${INK.grid},${i % 5 === 0 ? 0.11 : 0.06})`; g.lineWidth = 1.4;
-      const x = CX + i * step, y = CY + i * step;
-      g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke();
-      g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke();
-    }
     const tooth = document.createElement("canvas");
     tooth.width = tooth.height = 128;
     const tg = tooth.getContext("2d"), ti = tg.createImageData(128, 128);
