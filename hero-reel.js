@@ -293,7 +293,6 @@
   }
 
   /* ---------- 재생 ---------- */
-  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let start = performance.now(), visible = true, seekT = null;
   resize();
   new ResizeObserver(resize).observe(canvas);
@@ -304,9 +303,9 @@
     if (visible && seekT === null) render(((now - start) / 1000) % LOOP);
     requestAnimationFrame(frame);
   }
-  // 움직임 줄이기 설정이면 곱셈 원이 완성된 장면 하나만 보여 준다
-  if (still) render(8.2); else requestAnimationFrame(frame);
-  if (document.fonts && still) document.fonts.ready.then(() => render(8.2));
+  // 학교에서 관리하는 PC는 '애니메이션 효과'가 꺼져 있는 경우가 많아서,
+  // 이전 곱셈 원처럼 움직임 줄이기 설정과 관계없이 항상 재생한다.
+  requestAnimationFrame(frame);
 
   // 확인용: heroReel.seek(8.2)로 특정 시각을 멈춰 볼 수 있다. seek(null)이면 다시 재생.
   window.heroReel = {
