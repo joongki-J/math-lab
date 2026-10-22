@@ -64,16 +64,8 @@
           </div>
         </div>
 
-        <div class="hero-art" aria-label="움직이는 수학 곡선">
-          <svg id="curveSvg" viewBox="0 0 420 470" role="img" aria-label="곱셈 원 위에 그려지는 수학적 곡선">
-            <circle cx="210" cy="210" r="184" fill="none" stroke="#8a8d90" stroke-width="1.4"></circle>
-            <path id="curveChords" fill="none" stroke="#73777a" stroke-width="0.72" opacity="0.72"></path>
-            <path id="curveLead" fill="none" stroke="#ff5a30" stroke-width="2.7" stroke-linecap="round"></path>
-            <circle id="curveDot" cx="210" cy="26" r="6" fill="#ff5a30"></circle>
-            <text x="210" y="438" text-anchor="middle" class="curve-label">
-              i ↦ (<tspan id="curveK">2.00</tspan> × i) mod 240
-            </text>
-          </svg>
+        <div class="hero-art">
+          <canvas id="reelCanvas" role="img" aria-label="연필 선 하나가 곡선, 원·삼각형·사각형·육각형, 벌집, 곱셈 원으로 바뀌었다가 다시 선으로 돌아오는 12초 모션 그래픽"></canvas>
         </div>
       </div>
     </section>
@@ -168,5 +160,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="./script.js"></script>
+<script src="./hero-reel.js"></script>
 </body>
 </html>

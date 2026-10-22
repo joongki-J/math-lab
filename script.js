@@ -289,53 +289,6 @@ async function copyQrUrl() {
   }
 }
 
-/* ---------- 히어로 곡선 애니메이션 ---------- */
-
-function initCurveAnimation() {
-  const chords = document.querySelector("#curveChords");
-  const lead = document.querySelector("#curveLead");
-  const dot = document.querySelector("#curveDot");
-  const kLabel = document.querySelector("#curveK");
-
-  const N = 240;
-  const R = 184;
-  const CX = 210;
-  const CY = 210;
-
-  function point(index) {
-    const theta = (index / N) * Math.PI * 2 - Math.PI / 2;
-    return [CX + R * Math.cos(theta), CY + R * Math.sin(theta)];
-  }
-
-  const start = performance.now();
-
-  function tick(now) {
-    const t = (now - start) / 1000;
-    const k = 2 + ((t * 0.16) % 8);
-
-    let path = "";
-    for (let i = 0; i < N; i++) {
-      const a = point(i);
-      const b = point(i * k);
-      path += `M${a[0].toFixed(1)} ${a[1].toFixed(1)}L${b[0].toFixed(1)} ${b[1].toFixed(1)}`;
-    }
-    chords.setAttribute("d", path);
-
-    const leadIndex = (t * 26) % N;
-    const a = point(leadIndex);
-    const b = point(leadIndex * k);
-    lead.setAttribute("d", `M${a[0].toFixed(1)} ${a[1].toFixed(1)}L${b[0].toFixed(1)} ${b[1].toFixed(1)}`);
-
-    dot.setAttribute("cx", a[0].toFixed(1));
-    dot.setAttribute("cy", a[1].toFixed(1));
-    kLabel.textContent = k.toFixed(2);
-
-    requestAnimationFrame(tick);
-  }
-
-  requestAnimationFrame(tick);
-}
-
 /* ---------- 이벤트 ---------- */
 
 els.search.addEventListener("input", renderTools);
@@ -362,4 +315,3 @@ document.addEventListener("keydown", event => {
 initializeSubjects();
 els.count.textContent = TOOLS.length;
 renderTools();
-initCurveAnimation();

@@ -177,8 +177,12 @@ button{cursor:pointer}
 .hero-stats i{width:1px;height:12px;background:var(--line)}
 
 .hero-art{width:400px;max-width:100%;justify-self:end}
-.hero-art svg{width:100%;height:auto;display:block}
-.curve-label{fill:#707479;font-family:"IBM Plex Mono",monospace;font-size:12px}
+.hero-art canvas{
+  width:100%;
+  aspect-ratio:500/588;
+  display:block;
+  mix-blend-mode:multiply;
+}
 
 /* ---------- tools ---------- */
 .tools-section{padding:82px 0 94px;background:var(--paper);border-top:1px solid #e0dbd0}
