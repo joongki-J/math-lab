@@ -35,6 +35,14 @@ const TOOLS = [
     description: "호도법 좌표평면 위에 y = sin x, cos x, tan x 그래프를 손으로 그려 제출하는 활동지입니다.",
     tags: ["삼각함수", "호도법", "활동지"],
     url: "./trig-graph-drawing/"
+  },
+  {
+    title: "퍼셉트론 논리 연산 실험실",
+    subject: "인공지능 수학",
+    symbol: "⊕",
+    description: "퍼셉트론의 가중치와 편향을 직접 정해 논리 연산을 만들고, 가중치 학습 규칙과 배타적 논리합(XOR)의 해결까지 탐구합니다.",
+    tags: ["퍼셉트론", "논리 연산", "XOR"],
+    url: "./perceptron/"
   }
 ];
 
