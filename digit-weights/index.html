@@ -244,7 +244,16 @@
   @media (max-width:900px){.workspace.even{grid-template-columns:1fr}}
   .panel-body{display:grid;gap:11px;align-content:start}
   .panel-desc .m{font-size:1.05em}
-  .intro{margin:0;font-size:13px;line-height:1.65;color:#3d4044}
+  .chapters{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .chapters a{display:flex;flex-direction:column;align-items:center;padding:6px 4px;border-radius:10px;border:1px solid var(--line);background:#fbf9f3;color:var(--muted);text-decoration:none;font-weight:600;font-size:13.5px;line-height:1.25;text-align:center}
+  .chapters a small{font-size:11px;font-weight:500;opacity:.8}
+  .chapters a.cur{background:#15171a;color:#fbf9f3;border-color:#15171a}
+  .chapters a:focus-visible{outline:2px solid var(--sel);outline-offset:2px}
+  @media (min-width:860px){
+    .chapters a{flex-direction:row;justify-content:center;gap:8px;padding:9px}
+    .chapters a small{font-size:13px}
+  }
+  .lead{margin:0;font-size:13.5px;line-height:1.6;color:var(--muted)}
   .metric .label .m{font-size:12px}
   .hint{color:var(--sub);font-size:13px;margin:0;line-height:1.6}
   .m{font-family:var(--font-math);font-size:1.08em;white-space:nowrap}
@@ -331,11 +340,6 @@
   #net .big{font-size:15px;font-weight:700}
   #net g[data-k]{cursor:pointer}
   .fedinfo{display:flex;gap:10px;align-items:center;font-size:13.5px}
-  .tabs{display:flex;gap:6px;flex-wrap:wrap}
-  .tab{font-weight:700;font-size:13px;padding:9px 14px;border-radius:999px;border:1px solid #c9c4b8;background:#fbf9f3;cursor:pointer;line-height:1;transition:background .15s ease,border-color .15s ease,transform .15s ease}
-  .tab:hover{transform:translateY(-1px);border-color:#15171a}
-  .tab[aria-selected="true"]{background:#15171a;color:#fff;border-color:#15171a}
-  .tab:focus-visible{outline:2px solid var(--sel);outline-offset:2px}
   .maps{display:flex;gap:8px;flex-wrap:wrap}
   .maps .mt{font-size:12px;font-weight:600;margin-bottom:3px;white-space:nowrap}
   .maps.o3 .mt{font-size:10.5px}
@@ -379,16 +383,12 @@
     </div>
   </div>
 
-  <article class="panel">
-    <div class="panel-body">
-      <div class="tabs" role="tablist" aria-label="장 선택">
-        <button class="tab" type="button" role="tab" data-ch="0">1장 출력 노드 1개</button>
-        <button class="tab" type="button" role="tab" data-ch="1">2장 출력 노드 2개</button>
-        <button class="tab" type="button" role="tab" data-ch="2">3장 숫자 7 추가, 출력 노드 3개</button>
-      </div>
-      <p class="intro" id="intro"></p>
-    </div>
-  </article>
+  <nav class="chapters" aria-label="챕터">
+    <a href="#ch1" data-ch="0">1장<small>출력 노드 1개</small></a>
+    <a href="#ch2" data-ch="1">2장<small>출력 노드 2개</small></a>
+    <a href="#ch3" data-ch="2">3장<small>숫자 7 추가, 노드 3개</small></a>
+  </nav>
+  <p class="lead" id="intro"></p>
 
   <section class="workspace even">
     <article class="panel">
@@ -617,8 +617,8 @@
     $("trackBox").hidden=!cfg.single; $("bars").hidden=cfg.single; $("myCalc").hidden=!cfg.single;
     var h="";cfg.classes.forEach(function(d){h+='<button class="btn" type="button" data-add="'+d+'">'+d+'로 자료에 추가</button>'});
     $("addBtns").innerHTML=h+'<button class="btn" id="clearPad" type="button">지우기</button>';
-    var tabs=document.querySelectorAll(".tab");
-    for(var i=0;i<tabs.length;i++)tabs[i].setAttribute("aria-selected",i===ci?"true":"false");
+    var tabs=document.querySelectorAll(".chapters a");
+    for(var i=0;i<tabs.length;i++){tabs[i].classList.toggle("cur",i===ci);tabs[i].setAttribute("aria-current",i===ci?"page":"false")}
     // 가중치 지도 틀
     var m="";
     for(var o=0;o<O;o++){
@@ -887,9 +887,9 @@
     renderText();
     say("msg",cur.steps?"":"가중치가 모두 0입니다. 한 번 이동을 눌러 보세요.");say("msg2","");
     renderAll();
-    if(!keepHash){try{location.hash="chapter-"+(i+1)}catch(e){}}
+    if(!keepHash){try{location.hash="ch"+(i+1)}catch(e){}}
   }
-  function fromHash(){var m=/^#chapter-([123])$/.exec(location.hash||"");return m?+m[1]-1:0}
+  function fromHash(){var m=/^#(?:ch|chapter-)([123])$/.exec(location.hash||"");return m?+m[1]-1:0}
   function selectW(o,k){cur.so=o;cur.sk=k;say("msg2","");renderSamples();renderMap();renderSel()}
 
   var padEl=$("pad"),i,b;
@@ -898,7 +898,6 @@
     b.setAttribute("aria-label",cellName(i));padEl.appendChild(b);
   }
   var ax="";[0,0.5,1].forEach(function(v){ax+='<span style="left:'+tpos(v)+'%">'+v+'</span>'});$("axis2").innerHTML=ax;
-  document.querySelector(".tabs").addEventListener("click",function(e){var t=e.target.closest(".tab");if(t)show(+t.dataset.ch)});
   window.addEventListener("hashchange",function(){var n=fromHash();if(n!==ci)show(n,true)});
   $("maps").addEventListener("click",function(e){var t=e.target.closest(".wcell");if(t)selectW(+t.dataset.o,+t.dataset.k)});
   $("net").addEventListener("click",function(e){
