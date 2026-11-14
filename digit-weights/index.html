@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>화소별 가중치로 숫자 구분하기</title>
+<style>
+  /* ===== 중기쌤의 수학 실험실 공통 테마 =====
+     이 :root 블록과 아래 "공통 셸" 영역은 모든 도구가 동일하게 유지합니다.
+     도구별 CSS는 파일 아래쪽 "도구 전용" 영역에만 추가하세요. */
+  :root{
+    --bg:#f2f0e9;
+    --panel:#fbf9f3;
+    --panel-2:#f4f1e9;
+    --line:#d8d2c7;
+    --border-soft:#eee9df;
+    --text:#15171a;
+    --muted:#6b6f74;
+    --faint:#9a958a;
+    --accent:#ff5a30;
+    --accent-weak:rgba(255,90,48,.14);
+    --lime:#d9f24f;
+    --shadow:0 10px 28px rgba(21,23,26,.055);
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      linear-gradient(rgba(21,23,26,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(21,23,26,.035) 1px, transparent 1px),
+      var(--bg);
+    background-size:34px 34px;
+    color:var(--text);
+    font-family:Pretendard,"Apple SD Gothic Neo","Noto Sans KR",-apple-system,BlinkMacSystemFont,sans-serif;
+    letter-spacing:-.015em;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  button,input,select{font:inherit;color:inherit}
+  .num{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+  .app{width:100%;max-width:1180px;margin:0 auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+
+  /* ---- 공통 셸: 상단바 ---- */
+  .topbar{
+    min-height:72px;
+    display:flex;
+    gap:14px;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px 14px;
+    background:rgba(242,240,233,.90);
+    border:1px solid var(--line);
+    border-radius:18px;
+    backdrop-filter:blur(14px);
+  }
+  .brand-area{display:flex;align-items:center;gap:18px;min-width:0}
+  .home-link{
+    display:flex;align-items:center;gap:10px;flex:none;
+    color:var(--text);text-decoration:none;
+    padding:7px 10px 7px 8px;border-radius:12px;
+    transition:background .18s ease;
+  }
+  .home-link:hover{background:#e7e3d9}
+  .home-arrow{
+    width:31px;height:31px;border:1px solid #c9c4b8;border-radius:50%;
+    display:grid;place-items:center;font-size:16px;line-height:1;background:#fbf9f3;
+  }
+  .brand-copy{display:block;line-height:1.15}
+  .brand-copy strong{display:block;font-size:14px;font-weight:800;letter-spacing:-.035em}
+  .brand-copy small{
+    display:block;margin-top:4px;color:#8a8d90;
+    font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+    font-size:7.5px;letter-spacing:.13em;white-space:nowrap;
+  }
+  .top-divider{width:1px;height:34px;background:#d3cec3;flex:none}
+  .title-row{display:block;min-width:0}
+  .eyebrow{
+    display:flex;align-items:center;gap:7px;margin-bottom:4px;
+    color:#7b7770;font-size:10px;font-weight:750;white-space:nowrap;
+  }
+  .eyebrow span{display:block;width:18px;height:2px;background:var(--accent)}
+  h1{
+    font-size:clamp(18px,1.25vw,24px);
+    margin:0;
+    font-weight:800;letter-spacing:-.04em;white-space:nowrap;
+  }
+  h1 em{
+    font-style:normal;font-weight:500;
+    background:linear-gradient(transparent 60%,var(--lime) 0);
+    padding:0 .04em;
+  }
+  .subtitle{margin:4px 0 0;color:#666b6f;font-size:11.5px}
+  .badge{
+    display:inline-flex;align-items:center;gap:7px;flex:none;
+    background:#15171a;color:#fff;border:0;
+    border-radius:999px;padding:8px 12px;font-weight:700;font-size:12px;white-space:nowrap;
+  }
+  .dot{width:9px;height:9px;border-radius:50%;background:#73c48f}
+
+  /* ---- 공통 셸: 패널 ----
+     기본은 "넓은 그림 영역 + 좁은 설정 영역" 2단입니다.
+     패널 수가 다르면 grid-template-columns만 바꾸고, 좁은 화면에서 1단으로
+     떨어지는 @media (max-width:900px) 규칙은 남겨 두세요. */
+  .workspace{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr);gap:10px}
+  .panel{
+    min-width:0;
+    display:flex;flex-direction:column;
+    background:rgba(251,249,243,.96);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .panel-head{
+    flex:0 0 auto;
+    padding:12px 14px;
+    border-bottom:1px solid var(--line);
+    background:rgba(247,244,236,.92);
+  }
+  .panel-title{
+    font-size:15px;font-weight:800;letter-spacing:-.025em;
+    position:relative;padding-left:10px;
+  }
+  .panel-title::before{
+    content:"";position:absolute;left:0;top:.15em;bottom:.15em;
+    width:3px;border-radius:3px;background:var(--accent);
+  }
+  .panel-desc{color:#74716b;font-size:11.5px;margin-top:5px;line-height:1.45}
+  .panel-body{flex:1;min-height:0;padding:14px}
+
+  /* ---- 공통 셸: 버튼 ---- */
+  .btn{
+    border:1px solid #c9c4b8;background:#fbf9f3;color:#15171a;
+    border-radius:999px;font-weight:700;font-size:12.5px;
+    padding:9px 14px;cursor:pointer;line-height:1;
+    transition:background .15s ease,border-color .15s ease,transform .15s ease;
+  }
+  .btn:hover:not(:disabled){transform:translateY(-1px);border-color:#15171a;background:#f2efe6}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+  .btn.primary{background:#15171a;color:#fff;border-color:#15171a}
+  .btn.primary:hover:not(:disabled){background:#2b2e31}
+  .btn.danger{color:#a73b2c}
+  .btn.icon-btn{width:38px;height:38px;padding:0;border-radius:10px;font-size:18px;display:grid;place-items:center}
+
+  /* ---- 공통 셸: 그림 영역 (캔버스·SVG) ---- */
+  .chart-wrap{background:#fff;border:1px solid #e3ded4;border-radius:12px;overflow:hidden;position:relative}
+  .chart-wrap canvas,.chart-wrap svg{display:block;width:100%;height:100%}
+
+  /* ---- 공통 셸: 입력·지표·안내 (쓰지 않는 것은 지우세요) ---- */
+  .controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+  .control{display:flex;flex-direction:column;gap:5px}
+  .control label{font-size:11px;color:var(--muted);font-weight:800}
+  .control input{
+    width:100%;padding:9px 10px;font-weight:700;
+    border:1px solid #d3cec3;background:#fff;color:var(--text);border-radius:10px;
+  }
+  .control input:focus{outline:3px solid rgba(217,242,79,.42);border-color:#9aa64b}
+  .control input[type="range"]{
+    padding:0;height:22px;border:0;border-radius:0;background:transparent;
+    accent-color:#15171a;cursor:pointer;
+  }
+  .checkbox-control{
+    justify-content:center;min-height:58px;padding:8px 10px;
+    border:1px solid var(--line);background:var(--panel-2);border-radius:12px;
+  }
+  .checkbox-control label{display:flex;align-items:center;gap:8px;color:var(--text);cursor:pointer;font-size:11px}
+  .checkbox-control input{width:17px;height:17px;padding:0;accent-color:#15171a;cursor:pointer}
+
+  .metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .metric{background:var(--panel-2);border:1px solid #ddd7cc;border-radius:11px;padding:8px 9px;min-width:0}
+  .metric .label{color:#77736d;font-size:10px;font-weight:800;margin-bottom:3px}
+  .metric .value{
+    font-size:15px;font-weight:850;color:var(--text);
+    font-variant-numeric:tabular-nums;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+
+  .formula{
+    background:#15171a;color:#f6f2e9;border:1px solid #15171a;border-radius:12px;
+    padding:9px 10px;line-height:1.55;font-size:12px;
+    font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow:auto;
+  }
+  .note{
+    padding:10px 12px;border-radius:10px;
+    background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;
+    font-size:11px;line-height:1.5;
+  }
+  .note b{color:#7c2d12;font-weight:800}
+  .status{min-height:19px;font-size:11px;line-height:1.4;font-weight:750;color:var(--muted)}
+  .status.ok{color:#32724f}
+  .status.error{color:#b44634}
+
+  .legend{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+  .legend-item i{width:11px;height:11px;border-radius:3px;flex:none}
+
+  /* ---- 공통 셸: 반응형 (이 3개 블록은 그대로 유지) ----
+     주의: .topbar에 align-items:stretch를 쓰면 알약 모양 .badge가
+     줄바꿈된 제목 높이만큼 세로로 늘어나 거대한 원처럼 깨집니다. */
+  @media (max-width:1080px){
+    .brand-copy small{display:none}
+    .brand-copy strong{font-size:13px}
+    .top-divider{height:28px}
+  }
+  @media (max-width:900px){
+    .workspace{grid-template-columns:1fr}
+  }
+  @media (max-width:820px){
+    .topbar{align-items:flex-start}
+    .brand-area{align-items:flex-start}
+    .home-link{padding-left:2px}
+    .top-divider{display:none}
+    .brand-copy{display:none}
+    .title-row{display:block}
+    h1{white-space:normal}
+    .eyebrow{white-space:normal}
+    .badge{display:none}
+  }
+  @media (max-width:520px){
+    .app{padding:7px}
+    .topbar{border-radius:14px;padding:9px 10px}
+    .home-arrow{width:34px;height:34px}
+    h1{font-size:20px;line-height:1.25}
+    .subtitle{font-size:11px;white-space:normal}
+    .panel{border-radius:14px}
+    .panel-head{padding:12px}
+    .btn{min-height:40px}
+    .controls{grid-template-columns:1fr}
+  }
+
+  /* ===== 도구 전용 CSS는 여기부터 ===== */
+  :root{
+    --ink:#15171a; --sub:#6b6f74; --sel:#2b4acb; --bad:#b44634; --cell:#e7e2d7;
+    --one:#0f8a8a; --seven:#8a4fd3; --eight:#d9730d;
+    --pix-on:#ffffff; --pix-off:#0e1116; --pix-grid:#444c5c; --pix-hl:#4f86ff;
+    --font-body:Pretendard,"Apple SD Gothic Neo","Noto Sans KR",-apple-system,BlinkMacSystemFont,sans-serif;
+    --font-math:"STIX Two Text","Times New Roman",serif;
+  }
+  /* 배치: ①학습 자료·②신경망 / ③가중치 하나의 손실함수·④모든 가중치 학습 / ⑤직접 그리기. 900px 이하 1단 */
+  .workspace.even{grid-template-columns:minmax(320px,1fr) minmax(320px,1fr);align-items:start}
+  .workspace.one{grid-template-columns:1fr}
+  @media (max-width:900px){.workspace.even{grid-template-columns:1fr}}
+  .panel-body{display:grid;gap:11px;align-content:start}
+  .panel-desc .m{font-size:1.05em}
+  .intro{margin:0;font-size:13px;line-height:1.65;color:#3d4044}
+  .metric .label .m{font-size:12px}
+  .hint{color:var(--sub);font-size:13px;margin:0;line-height:1.6}
+  .m{font-family:var(--font-math);font-size:1.08em;white-space:nowrap}
+  .m i{font-style:italic}
+  .frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;line-height:1.15;font-size:.92em}
+  .frac>span:first-child{border-bottom:1px solid currentColor;padding:0 3px}
+  .fx{font-family:var(--font-math);font-size:17px;overflow-x:auto;padding:4px 0;white-space:nowrap}
+  .fx i{font-style:italic}
+  .tnum{font-variant-numeric:tabular-nums}
+  /* 학습 자료 */
+  .samples{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px}
+  .s{border:1px solid var(--line);border-radius:8px;padding:6px 4px;display:grid;justify-items:center;gap:3px;font-size:12px;position:relative}
+  .s.d1{border-top:3px solid var(--one)} .s.d7{border-top:3px solid var(--seven)} .s.d8{border-top:3px solid var(--eight)}
+  .s.wrong{outline:2px solid var(--bad);outline-offset:1px}
+  .mini{display:grid;grid-template-columns:repeat(3,9px);gap:1px;background:var(--pix-grid);padding:1px;border-radius:2px}
+  .mini b{width:9px;height:9px;background:var(--pix-off)}
+  .mini b.on{background:var(--pix-on)}
+  .s .m{font-size:13px}
+  .s button{position:absolute;top:1px;right:2px;border:0;background:none;color:var(--sub);font-size:14px;line-height:1;padding:2px 4px;cursor:pointer}
+  /* 조작부 */
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .btn:focus-visible,input:focus-visible,select:focus-visible,.cellbtn:focus-visible{outline:2px solid var(--sel);outline-offset:2px}
+  select{padding:8px 10px;border-radius:10px;border:1px solid #d3cec3;background:#fff;font-weight:700}
+  input[type=range]{width:100%;accent-color:#15171a}
+  .msg{font-size:13.5px;min-height:1.6em;margin:0}
+  .msg.warn{color:var(--bad);font-weight:600}
+  /* 분류 결과 수직선 */
+  .track{position:relative;height:92px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .zone8{position:absolute;top:0;bottom:0;right:0;background:color-mix(in srgb,var(--eight) 10%,transparent)}
+  .zone1{position:absolute;top:0;bottom:0;left:0;background:color-mix(in srgb,var(--one) 10%,transparent)}
+  .thr{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed var(--ink)}
+  .thr span{position:absolute;top:2px;left:4px;font-size:11px;white-space:nowrap}
+  .lane{position:absolute;left:0;font-size:11px;color:var(--sub);padding-left:4px}
+  .tdot{position:absolute;width:14px;height:14px;border-radius:50%;transform:translate(-50%,-50%);border:2px solid var(--panel)}
+  .tdot.d1{background:var(--one)} .tdot.d8{background:var(--eight)}
+  .tdot.wrong{box-shadow:0 0 0 2px var(--bad)}
+  .tdot.mine{background:var(--ink);border-radius:3px}
+  .axis{display:flex;justify-content:space-between;font-size:11px;color:var(--sub)}
+  .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-weight:700;color:var(--panel)}
+  .pill.d1{background:var(--one)} .pill.d7{background:var(--seven)} .pill.d8{background:var(--eight)}
+  /* 직접 그리기 */
+  .draw{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+  .pad{display:grid;grid-template-columns:repeat(3,48px);gap:3px;touch-action:none;background:var(--pix-grid);padding:3px;border-radius:8px}
+  .cellbtn{width:48px;height:48px;border:0;border-radius:4px;background:var(--pix-off);cursor:pointer;padding:0}
+  .cellbtn.on{background:var(--pix-on)}
+  .out{display:grid;gap:6px;min-width:150px;flex:1}
+  @media (prefers-reduced-motion:no-preference){.tdot{transition:left .25s}}
+  /* 가중치 지도 */
+  .wwrap{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+  .wmap{display:grid;grid-template-columns:repeat(3,56px);gap:4px}
+  .wcell{width:56px;height:46px;border:1px solid var(--line);border-radius:6px;cursor:pointer;padding:0;font:inherit;font-size:13px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .wcell.sel{outline:3px solid var(--sel);outline-offset:1px}
+  .wcell:focus-visible{outline:3px solid var(--sel);outline-offset:1px}
+  .wlegend{display:flex;gap:10px;font-size:12px;color:var(--sub);flex-wrap:wrap}
+  .wlegend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;font-style:normal}
+  .side{flex:1;min-width:200px;display:grid;gap:8px}
+  .chart-wrap.c-main{height:230px}
+  .chart-wrap.c-small{height:120px}
+  .mini b{position:relative}
+  .mini b.hl{outline:2px solid var(--pix-hl);z-index:1}
+  .mini b.hl.on{background:#b9cdff}
+  .mini.big{grid-template-columns:repeat(3,13px)}
+  .mini.big b{width:13px;height:13px}
+  .terms{display:grid;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:8px}
+  .term{border:1px solid var(--line);border-left:4px solid var(--line);border-radius:8px;padding:8px;display:grid;gap:4px;justify-items:start;font-size:12.5px}
+  .term.has{border-left-color:var(--sel)}
+  .term.none{color:var(--sub)}
+  .term .fx{font-size:16px;padding:0;color:var(--ink)}
+  .term.has .fx{color:var(--sel);font-weight:600}
+  .tag{font-size:11.5px;font-weight:600}
+  .st{display:block;line-height:1.45}
+  .st .lb{display:block;font-size:11px;color:var(--sub)}
+  .st .m{font-size:14.5px;white-space:normal}
+  #dSum{white-space:normal;line-height:1.9}
+  #myCalc{white-space:normal;font-size:15px}
+  .term.none .fx{color:var(--sub)}
+  .s{cursor:pointer}
+  .s.fed{background:color-mix(in srgb,var(--sel) 12%,var(--panel));box-shadow:0 0 0 2px var(--sel)}
+  .netwrap{display:flex;justify-content:center}
+  #net{width:100%;max-width:400px;height:auto;display:block}
+  #net text{font-family:var(--font-body);font-size:10.5px;fill:var(--ink);font-variant-numeric:tabular-nums}
+  #net .sub{fill:var(--sub)}
+  #net .wl{paint-order:stroke;stroke:#fff;stroke-width:3px}
+  #net .big{font-size:15px;font-weight:700}
+  #net g[data-k]{cursor:pointer}
+  .fedinfo{display:flex;gap:10px;align-items:center;font-size:13.5px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap}
+  .tab{font-weight:700;font-size:13px;padding:9px 14px;border-radius:999px;border:1px solid #c9c4b8;background:#fbf9f3;cursor:pointer;line-height:1;transition:background .15s ease,border-color .15s ease,transform .15s ease}
+  .tab:hover{transform:translateY(-1px);border-color:#15171a}
+  .tab[aria-selected="true"]{background:#15171a;color:#fff;border-color:#15171a}
+  .tab:focus-visible{outline:2px solid var(--sel);outline-offset:2px}
+  .maps{display:flex;gap:8px;flex-wrap:wrap}
+  .maps .mt{font-size:12px;font-weight:600;margin-bottom:3px;white-space:nowrap}
+  .maps.o3 .mt{font-size:10.5px}
+  .maps.o2 .wmap{grid-template-columns:repeat(3,46px)} .maps.o2 .wcell{width:46px;height:40px;font-size:12px}
+  .maps.o3 .wmap{grid-template-columns:repeat(3,31px);gap:3px} .maps.o3 .wcell{width:31px;height:30px;font-size:9.5px;border-radius:4px}
+  .bars{display:grid;gap:6px}
+  .bar{display:grid;grid-template-columns:76px 1fr 92px;gap:8px;align-items:center;font-size:13px}
+  .bar .tr{height:14px;border-radius:7px;background:var(--cell);position:relative;overflow:hidden}
+  .bar .fl{position:absolute;top:0;bottom:0;border-radius:7px}
+  .bar.win{font-weight:700}
+  .fold{border:1px solid var(--line);border-radius:8px}
+  .fold{border-color:#2b4acb}
+  .fold summary{cursor:pointer;padding:12px 14px;font-weight:700;font-size:15px;color:#ffffff;background:#2b4acb;border-radius:7px}
+  .fold[open] summary{border-radius:7px 7px 0 0;margin-bottom:12px}
+  .fold summary .m{color:#ffffff}
+  .fold summary:focus-visible{outline:2px solid var(--sel);outline-offset:2px}
+  .foldin{display:grid;gap:10px;padding:0 12px 12px;min-width:0}
+  [hidden]{display:none !important}
+  .axis2{position:relative;height:16px;font-size:11px;color:var(--sub)}
+  .axis2 span{position:absolute;transform:translateX(-50%)}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <div class="brand-area">
+      <a class="home-link" href="../#tools" aria-label="중기쌤의 수학 실험실 메인으로">
+        <span class="home-arrow">←</span>
+        <span class="brand-copy">
+          <strong>중기쌤의 수학 실험실</strong>
+          <small>MATHEMATICS LABORATORY</small>
+        </span>
+      </a>
+      <span class="top-divider" aria-hidden="true"></span>
+      <div class="title-row">
+        <div class="eyebrow"><span></span>인공지능 수학 · 인공신경망과 손실함수</div>
+        <h1>화소별 가중치로 <em>숫자 구분하기</em></h1>
+        <p class="subtitle">3×5 숫자 그림의 칸마다 가중치를 두고, 손실함수와 경사하강법으로 숫자를 분류합니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <article class="panel">
+    <div class="panel-body">
+      <div class="tabs" role="tablist" aria-label="장 선택">
+        <button class="tab" type="button" role="tab" data-ch="0">1장 출력 노드 1개</button>
+        <button class="tab" type="button" role="tab" data-ch="1">2장 출력 노드 2개</button>
+        <button class="tab" type="button" role="tab" data-ch="2">3장 숫자 7 추가, 출력 노드 3개</button>
+      </div>
+      <p class="intro" id="intro"></p>
+    </div>
+  </article>
+
+  <section class="workspace even">
+    <article class="panel">
+      <div class="panel-head">
+        <div class="panel-title">① 학습 자료</div>
+        <div class="panel-desc" id="note1"></div>
+      </div>
+      <div class="panel-body">
+        <div class="samples" id="samples"></div>
+        <div class="row"><button class="btn" id="resetData" type="button">처음 자료로 되돌리기</button></div>
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-head">
+        <div class="panel-title">② 인공신경망으로 나타내기</div>
+        <div class="panel-desc" id="note3"></div>
+      </div>
+      <div class="panel-body">
+        <div class="fedinfo" id="fedinfo"></div>
+        <div class="chart-wrap netwrap"><svg id="net" viewBox="0 0 346 392" role="img" aria-label="입력 노드 15개와 출력 노드로 이루어진 인공신경망"></svg></div>
+        <div class="wlegend"><span><i style="background:var(--eight)"></i>양수 가중치</span><span><i style="background:var(--one)"></i>음수 가중치</span><span><i style="background:var(--sel)"></i>선택한 가중치</span><span>선이 굵을수록 절댓값이 큽니다</span></div>
+        <p class="hint" id="note3b"></p>
+      </div>
+    </article>
+  </section>
+
+  <section class="workspace even">
+    <article class="panel">
+      <div class="panel-head">
+        <div class="panel-title">③ 가중치 지도와 가중치 하나의 손실함수</div>
+        <div class="panel-desc" id="note4"></div>
+      </div>
+      <div class="panel-body">
+        <div class="wwrap">
+          <div>
+            <div class="maps" id="maps"></div>
+            <div class="wlegend" style="margin-top:6px" id="mapLegend"></div>
+          </div>
+          <div class="side">
+            <div class="fx tnum" id="expanded"></div>
+            <div class="chart-wrap c-main"><canvas id="chart" role="img" aria-label="선택한 가중치에 대한 손실함수의 그래프"></canvas></div>
+            <label for="wRange" class="hint" id="wLabel"></label>
+            <input type="range" id="wRange" min="-0.6" max="0.8" step="0.01" value="0">
+            <div class="metrics">
+              <div class="metric"><div class="label" id="lblW"></div><div class="value tnum" id="vW"></div></div>
+              <div class="metric"><div class="label">접선의 기울기</div><div class="value tnum" id="vD"></div></div>
+            </div>
+            <div class="row"><button class="btn" id="stepOne" type="button">이 가중치만 한 번 이동</button></div>
+            <p class="msg tnum" id="msg2"></p>
+          </div>
+        </div>
+        <details class="fold">
+          <summary><span id="dTitle"></span> 펼쳐 보기</summary>
+          <div class="foldin">
+            <p class="hint" id="dIntro"></p>
+            <div class="terms" id="terms"></div>
+            <div class="fx tnum" id="dSum"></div>
+            <p class="hint tnum" id="dWhy"></p>
+          </div>
+        </details>
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-head">
+        <div class="panel-title">④ 모든 가중치 학습하기</div>
+        <div class="panel-desc">모든 가중치를 각자의 접선의 기울기 반대쪽으로 동시에 옮깁니다.</div>
+      </div>
+      <div class="panel-body">
+        <div class="fx" id="form2"></div>
+        <p class="hint" id="note2"></p>
+        <div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+          <div class="metric"><div class="label">손실함수의 값</div><div class="value tnum" id="vL"></div></div>
+          <div class="metric"><div class="label">이동 횟수</div><div class="value tnum" id="vN"></div></div>
+          <div class="metric"><div class="label">맞게 판정</div><div class="value tnum" id="acc"></div></div>
+        </div>
+        <div class="chart-wrap c-small"><canvas id="histc" role="img" aria-label="이동 횟수에 따른 손실함수 값의 변화"></canvas></div>
+        <div class="row">
+          <label for="eta">학습률 <span class="m"><i>η</i></span></label>
+          <select id="eta">
+            <option value="0.01" selected>0.01</option>
+            <option value="0.02">0.02</option>
+            <option value="0.05">0.05</option>
+            <option value="0.1">0.1</option>
+            <option value="0.2">0.2</option>
+          </select>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="stepAll" type="button"></button>
+          <button class="btn" id="auto" type="button">자동 실행</button>
+          <button class="btn" id="resetW" type="button">가중치를 모두 0으로</button>
+        </div>
+        <p class="msg tnum" id="msg"></p>
+      </div>
+    </article>
+  </section>
+
+  <section class="workspace one">
+    <article class="panel">
+      <div class="panel-head">
+        <div class="panel-title">⑤ <span id="h4t"></span></div>
+        <div class="panel-desc">학습 자료에 없던 모양도 그려 보세요. 틀리는 그림은 자료에 추가하고 다시 학습하면 가중치 지도가 달라집니다. 실제 손글씨 숫자 인식은 28×28 = 784개의 화소를 입력으로, 숫자 0~9에 맞춘 10개의 노드를 출력으로 둡니다.</div>
+      </div>
+      <div class="panel-body">
+        <div id="trackBox">
+          <div class="track" id="track"></div>
+          <div class="axis2 tnum" id="axis2"></div>
+        </div>
+        <div class="draw">
+          <div class="pad" id="pad" role="group" aria-label="3×5 그림판"></div>
+          <div class="out">
+            <div class="fx tnum" id="myCalc"></div>
+            <div class="bars tnum" id="bars"></div>
+            <div id="myVerdict"></div>
+            <div class="row" id="addBtns"></div>
+          </div>
+        </div>
+      </div>
+    </article>
+  </section>
+</div>
+
+<script>
+(function(){
+  var RAW=[
+    [".#.",".#.",".#.",".#.","...",1],
+    [".#.",".#.",".#.",".#.",".#.",1],
+    ["##.",".#.",".#.",".#.",".#.",1],
+    [".#.",".#.",".#.",".#.","###",1],
+    ["###","..#","..#","..#","..#",7],
+    ["###","..#",".#.",".#.",".#.",7],
+    ["###","#.#","..#","..#","..#",7],
+    ["###","..#",".#.","#..","#..",7],
+    ["###","#.#",".#.","#.#","###",8],
+    [".##","#.#","###","#.#","###",8],
+    ["###","#.#","###","#.#","###",8],
+    ["###","###","###","#.#","###",8]
+  ];
+  var CH=[{classes:[1,8],single:true},{classes:[1,8],single:false},{classes:[1,7,8],single:false}];
+  var DCOL={1:"var(--one)",7:"var(--seven)",8:"var(--eight)"};
+  var TMIN=-0.25,TMAX=1.5,WMIN=-0.6,WMAX=0.8;
+  var S=[],ci=0,cfg,cur,timer=null;
+  var $=function(id){return document.getElementById(id)};
+  function zeros(){var z=[];for(var i=0;i<15;i++)z.push(0);return z}
+  function base(c){
+    return RAW.filter(function(r){return c.classes.indexOf(r[5])>=0}).map(function(r){
+      return {cells:r.slice(0,5).join("").split("").map(function(x){return x==="#"?1:0}),c:r[5],base:true};
+    });
+  }
+  function nOut(){return cfg.single?1:cfg.classes.length}
+  function firstOf(d){for(var i=0;i<cur.data.length;i++)if(cur.data[i].c===d)return i;return 0}
+  function fresh(c){
+    var W=[],n=c.single?1:c.classes.length;for(var o=0;o<n;o++)W.push(zeros());
+    return {data:base(c),W:W,so:n-1,sk:0,feed:0,pad:zeros(),steps:0,hist:[]};
+  }
+  function sum(c){return c.reduce(function(s,v){return s+v},0)}
+  function sums(c){return cur.W.map(function(w){var s=0;for(var k=0;k<15;k++)s+=w[k]*c[k];return s})}
+  function target(d,o){return cfg.single?(d.c===8?1:0):(d.c===cfg.classes[o]?1:0)}
+  function softmax(s){var m=Math.max.apply(null,s),e=s.map(function(v){return Math.exp(v-m)}),t=sum(e);return e.map(function(v){return v/t})}
+  function pct(v){return Math.round(v*100)+"%"}
+  function winner(s){var b=0;for(var i=1;i<s.length;i++)if(s[i]>s[b])b=i;return b}
+  function verdict(c){var s=sums(c);return cfg.single?(s[0]>=0.5?8:1):cfg.classes[winner(s)]}
+  function loss(){
+    var t=0,n=cur.data.length;
+    cur.data.forEach(function(d){var s=sums(d.cells);for(var o=0;o<s.length;o++){var e=s[o]-target(d,o);t+=e*e}});
+    return n?t/n:0;
+  }
+  // 선택한 가중치 t에 대한 이차식 A t^2 + B t + C (other: 다른 노드의 오차 제곱의 합)
+  function coef(o,k){
+    var n=cur.data.length,A=0,B=0,C=0,other=0;
+    cur.data.forEach(function(d){
+      var s=sums(d.cells),p=d.cells[k],r=s[o]-cur.W[o][k]*p-target(d,o);
+      A+=p*p;B+=2*p*r;C+=r*r;
+      for(var j=0;j<s.length;j++)if(j!==o){var e=s[j]-target(d,j);other+=e*e}
+    });
+    return n?{A:A/n,B:B/n,C:(C+other)/n,other:other}:{A:0,B:0,C:0,other:0};
+  }
+  function fmt(v,k){var s=v.toFixed(k);if(parseFloat(s)===0)s=(0).toFixed(k);return s.replace("-","−")}
+  function trim(v){return String(Math.abs(parseFloat(v.toFixed(3))))}
+  function mini(cells,hl,big){
+    var h='<div class="mini'+(big?' big':'')+'">';
+    cells.forEach(function(v,i){var c=(v?'on':'')+(i===hl?' hl':'');h+='<b'+(c?' class="'+c+'"':'')+'></b>'});
+    return h+'</div>';
+  }
+  function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+  function nOk(){var ok=0;cur.data.forEach(function(d){if(verdict(d.cells)===d.c)ok++});return ok}
+  function tpos(v){return (Math.max(TMIN,Math.min(TMAX,v))-TMIN)/(TMAX-TMIN)*100}
+  function nodeName(o){return cfg.single?"":"숫자 "+cfg.classes[o]+" 노드"}
+  function wSym(){return '<i>w</i><sub>'+(cfg.single?'':cfg.classes[cur.so]+',')+(cur.sk+1)+'</sub>'}
+  function jo(a,b){return [0,1,3,6,7,8].indexOf((cur.sk+1)%10)>=0?a:b}
+  var SUBS="₀₁₂₃₄₅₆₇₈₉";
+  function subn(n){return String(n).split("").map(function(c){return SUBS[+c]}).join("")}
+  function cellName(k){return (Math.floor(k/3)+1)+'행 '+(k%3+1)+'열'}
+
+  function renderText(){
+    var O=nOut(),N=15*O,cls=cfg.classes.join(", ");
+    $("intro").innerHTML=ci===0?
+      '3×5 격자의 칸마다 가중치를 하나씩 둡니다. 예측값은 <b>칠한 칸의 가중치를 모두 더한 값</b>이고, 0.5 이상이면 8, 미만이면 1로 판정합니다. 가중치는 15개지만, 하나만 골라 움직이면 손실함수는 그 가중치에 대한 이차함수입니다.':
+      ci===1?
+      '같은 자료를 출력 노드 2개로 분류합니다. 숫자 1 노드와 숫자 8 노드가 각자 가중합을 구하고, 소프트맥스로 확률로 바꾼 뒤 <b>확률이 더 큰 숫자</b>로 판정합니다. 기준값 0.5가 필요 없어지고, 가중치는 15 × 2 = 30개가 됩니다.':
+      '숫자 7을 추가하고 출력 노드를 3개로 늘립니다. 세 노드의 가중합을 소프트맥스로 확률로 바꾼 뒤 <b>확률이 가장 큰 숫자</b>로 판정하고, 가중치는 15 × 3 = 45개입니다. 숫자가 늘어나면 출력 노드만 더 두면 됩니다.';
+    $("note1").innerHTML=cfg.single?
+      '정답은 숫자 1이면 <span class="m"><i>y</i> = 0</span>, 숫자 8이면 <span class="m"><i>y</i> = 1</span>입니다. 빨간 테두리는 지금의 가중치로 잘못 판정한 그림입니다. 칠한 칸은 흰색(값 1), 칠하지 않은 칸은 검은색(값 0)입니다.':
+      '출력 노드마다 정답은 자기 숫자의 그림이면 1, 아니면 0입니다. 빨간 테두리는 지금의 가중치로 잘못 판정한 그림입니다. 칠한 칸은 흰색(값 1), 칠하지 않은 칸은 검은색(값 0)입니다.';
+    $("form2").innerHTML=cfg.single?
+      '(예측값) = <i>w</i><sub>1</sub><i>p</i><sub>1</sub> + <i>w</i><sub>2</sub><i>p</i><sub>2</sub> + ⋯ + <i>w</i><sub>15</sub><i>p</i><sub>15</sub>':
+      '(숫자 8 노드의 가중합) = <i>w</i><sub>8,1</sub><i>p</i><sub>1</sub> + <i>w</i><sub>8,2</sub><i>p</i><sub>2</sub> + ⋯ + <i>w</i><sub>8,15</sub><i>p</i><sub>15</sub>';
+    $("note2").innerHTML='<span class="m"><i>p</i><sub><i>k</i></sub></span>는 <span class="m"><i>k</i></span>번째 칸을 칠했으면 1, 아니면 0입니다. '+(cfg.single?
+      '손실함수 <span class="m"><i>L</i></span>은 (예측값 − 정답)<sup>2</sup>의 평균입니다.':
+      '출력 노드마다 가중치 15개가 따로 있습니다. <span class="m"><i>w</i><sub>8,1</sub></span>은 숫자 8 노드와 1번째 칸을 잇는 가중치이고, <span class="m"><i>w</i><sub>1,1</sub></span>은 숫자 1 노드와 1번째 칸을 잇는 가중치입니다. 손실함수 <span class="m"><i>L</i></span>은 모든 그림, 모든 출력 노드의 (가중합 − 정답)<sup>2</sup>을 더해 그림의 수로 나눈 값입니다.');
+    $("stepAll").textContent=N+"개 모두 한 번 이동";
+    $("note3").innerHTML=cfg.single?
+      '칸 15개가 입력 노드입니다. 연결선마다 가중치가 하나씩 있고, 칠한 칸(값 1)의 가중치만 더해져 가중합이 됩니다. 활성화 함수는 가중합이 0.5 이상이면 1(숫자 8), 미만이면 0(숫자 1)을 출력합니다. 학습 자료의 그림을 누르면 그 그림이 입력됩니다.':
+      '입력 노드 15개가 출력 노드 '+O+'개에 모두 연결됩니다. 출력 노드를 누르면 그 노드에 연결된 가중치 15개가 색으로 표시됩니다. 학습 자료의 그림을 누르면 그 그림이 입력됩니다.';
+    $("note3b").innerHTML=cfg.single?
+      '손실함수는 활성화 함수를 거치기 전의 가중합과 정답의 차로 계산합니다. 계단 모양의 활성화 함수는 기울기가 0인 구간뿐이라 경사하강법에 쓸 수 없기 때문입니다.':
+      '소프트맥스는 가중합을 합이 100%인 확률로 바꿉니다. <span class="m">(확률) = <span class="frac"><span><i>e</i><sup>(그 노드의 가중합)</sup></span><span>(모든 노드의 <i>e</i><sup>(가중합)</sup>의 합)</span></span></span> 확률이 가장 큰 숫자로 판정하고, 확률이 같으면 앞의 숫자로 판정합니다. 크기 순서는 바뀌지 않으므로 가중합이 가장 큰 노드를 고르는 것과 결과가 같습니다. 이 웹앱의 손실함수는 소프트맥스를 거치기 전의 가중합으로 계산합니다. 실제 분류 모델은 소프트맥스를 거친 확률로 손실함수를 계산합니다.';
+    $("note4").innerHTML=cfg.single?
+      '칸을 누르면 그 칸의 가중치만 변수로 본 손실함수를 보여 줍니다. 나머지 14개는 지금 값에 고정합니다.':
+      '출력 노드마다 가중치 지도가 하나씩 있습니다. 칸을 누르면 그 가중치만 변수로 본 손실함수를 보여 줍니다. 나머지 '+(N-1)+'개는 지금 값에 고정합니다.';
+    $("mapLegend").innerHTML=cfg.single?
+      '<span><i style="background:var(--eight)"></i>양수: 8 쪽</span><span><i style="background:var(--one)"></i>음수: 1 쪽</span>':
+      '<span><i style="background:var(--eight)"></i>양수: 그 숫자 쪽</span><span><i style="background:var(--one)"></i>음수: 그 숫자가 아닌 쪽</span>';
+    $("h4t").textContent=cfg.single?"분류 결과와 직접 그리기":"직접 그려서 판정하기";
+    $("trackBox").hidden=!cfg.single; $("bars").hidden=cfg.single; $("myCalc").hidden=!cfg.single;
+    var h="";cfg.classes.forEach(function(d){h+='<button class="btn" type="button" data-add="'+d+'">'+d+'로 자료에 추가</button>'});
+    $("addBtns").innerHTML=h+'<button class="btn" id="clearPad" type="button">지우기</button>';
+    var tabs=document.querySelectorAll(".tab");
+    for(var i=0;i<tabs.length;i++)tabs[i].setAttribute("aria-selected",i===ci?"true":"false");
+    // 가중치 지도 틀
+    var m="";
+    for(var o=0;o<O;o++){
+      m+='<div>'+(cfg.single?'':'<div class="mt" style="color:'+DCOL[cfg.classes[o]]+'">'+nodeName(o)+' <span class="m" style="font-weight:400"><i>w</i><sub>'+cfg.classes[o]+',<i>k</i></sub></span></div>')+'<div class="wmap" role="group" aria-label="'+(nodeName(o)||'가중치')+' 지도">';
+      for(var k=0;k<15;k++)m+='<button type="button" class="wcell" data-o="'+o+'" data-k="'+k+'" aria-label="'+nodeName(o)+' '+cellName(k)+' 가중치"></button>';
+      m+='</div></div>';
+    }
+    $("maps").className="maps o"+O; $("maps").innerHTML=m;
+  }
+  function renderSamples(){
+    var h="";
+    cur.data.forEach(function(d,i){
+      var v=verdict(d.cells),wrong=v!==d.c;
+      h+='<div class="s d'+d.c+(wrong?' wrong':'')+(cur.feed===i?' fed':'')+'" data-feed="'+i+'">'+mini(d.cells,cur.sk)+
+         '<span class="tnum">판정 '+v+'</span><span class="tnum">정답 '+d.c+'</span>'+
+         (d.base?'':'<button type="button" data-del="'+i+'" aria-label="이 그림 삭제">×</button>')+'</div>';
+    });
+    $("samples").innerHTML=h;
+  }
+  function renderMap(){
+    var btns=$("maps").querySelectorAll(".wcell");
+    for(var i=0;i<btns.length;i++){
+      var o=+btns[i].dataset.o,k=+btns[i].dataset.k,v=cur.W[o][k],on=o===cur.so&&k===cur.sk;
+      var m=Math.min(1,Math.abs(v)/0.25)*70;
+      btns[i].style.background='color-mix(in srgb,'+(v>=0?'var(--eight)':'var(--one)')+' '+m.toFixed(0)+'%,var(--panel))';
+      btns[i].textContent=fmt(v,2);
+      btns[i].classList.toggle("sel",on);
+      btns[i].setAttribute("aria-pressed",on?"true":"false");
+    }
+    renderNet();
+  }
+  function edgeSet(o,ix,ox,oy,cells,ys,labels){
+    var h="";
+    for(var k=0;k<15;k++){
+      var y=ys[k],on=cells[k],v=cur.W[o][k],isSel=o===cur.so&&k===cur.sk;
+      if(!labels){h+='<line x1="'+ix+'" y1="'+y+'" x2="'+ox+'" y2="'+oy+'" style="stroke:var(--line);stroke-width:0.7"/>';continue}
+      var col=isSel?'var(--sel)':(v>=0?'var(--eight)':'var(--one)');
+      var sw=Math.max(0.8,Math.min(7,Math.abs(v)*22))+(isSel?1.5:0);
+      var lx=ix+0.3*(ox-ix),ly=y+0.3*(oy-y);
+      h+='<g data-k="'+k+'"><line x1="'+ix+'" y1="'+y+'" x2="'+ox+'" y2="'+oy+'" style="stroke:transparent;stroke-width:14"/>'+
+        '<line x1="'+ix+'" y1="'+y+'" x2="'+ox+'" y2="'+oy+'" style="stroke:'+col+';stroke-width:'+sw.toFixed(1)+';opacity:'+(on?1:0.28)+(on?'':';stroke-dasharray:3 3')+'"/>'+
+        '<text class="wl" x="'+lx.toFixed(1)+'" y="'+(ly+3.5).toFixed(1)+'" text-anchor="middle" style="'+(isSel?'fill:var(--sel);font-weight:700':(on?'':'fill:var(--sub)'))+'">'+fmt(v,2)+'</text></g>';
+    }
+    return h;
+  }
+  function renderNet(){
+    if(cur.feed!=="pad"&&cur.feed>=cur.data.length)cur.feed=cur.data.length?0:"pad";
+    var cells=cur.feed==="pad"?cur.pad:cur.data[cur.feed].cells;
+    $("fedinfo").innerHTML=mini(cells,cur.sk,true)+'<span>입력: '+(cur.feed==="pad"?'내가 그린 그림':'학습 자료 '+(cur.feed+1)+'번 그림 (정답 '+cur.data[cur.feed].c+')')+'</span>';
+    var ix=52,oy=196,ys=[],nodes="",h="",s=sums(cells),k;
+    for(k=0;k<15;k++){
+      var y=22+k*23+Math.floor(k/3)*6,on=cells[k],isSel=k===cur.sk;ys.push(y);
+      nodes+='<g data-k="'+k+'"><circle cx="'+ix+'" cy="'+y+'" r="9" style="fill:'+(on?'var(--pix-on)':'var(--pix-off)')+';stroke:'+(isSel?'var(--sel)':'var(--sub)')+';stroke-width:'+(isSel?3:1)+'"/>'+
+        '<text x="'+ix+'" y="'+(y+3.5)+'" text-anchor="middle" style="fill:'+(on?'#0e1116':'#ffffff')+'">'+on+'</text>'+
+        '<text class="sub" x="'+(ix-14)+'" y="'+(y+3.5)+'" text-anchor="end">p'+subn(k+1)+'</text></g>';
+    }
+    var foot='<text class="sub" x="'+ix+'" y="388" text-anchor="middle">입력층</text>';
+    if(cfg.single){
+      var ox=196,ax=240,aw=40,qx=318,v=s[0],is8=v>=0.5,vc=is8?'var(--eight)':'var(--one)',mx=ax+aw/2;
+      h=edgeSet(0,ix,ox,oy,cells,ys,true)+nodes+foot+
+        '<text class="sub" x="120" y="12" text-anchor="middle">가중치 w₁ ~ w₁₅</text>'+
+        '<circle cx="'+ox+'" cy="'+oy+'" r="27" style="fill:var(--panel);stroke:var(--ink);stroke-width:2"/>'+
+        '<text class="sub" x="'+ox+'" y="'+(oy-8)+'" text-anchor="middle">가중합</text>'+
+        '<text class="big" x="'+ox+'" y="'+(oy+10)+'" text-anchor="middle">'+fmt(v,2)+'</text>'+
+        '<line x1="'+(ox+27)+'" y1="'+oy+'" x2="'+ax+'" y2="'+oy+'" style="stroke:var(--ink);stroke-width:1.5"/>'+
+        '<line x1="'+(ax+aw)+'" y1="'+oy+'" x2="'+(qx-20)+'" y2="'+oy+'" style="stroke:'+vc+';stroke-width:2.5"/>'+
+        '<rect x="'+ax+'" y="'+(oy-20)+'" width="'+aw+'" height="40" rx="6" style="fill:var(--panel);stroke:var(--ink);stroke-width:2"/>'+
+        '<polyline points="'+(ax+6)+','+(oy+11)+' '+mx+','+(oy+11)+'" style="fill:none;stroke:'+(is8?'var(--line)':'var(--one)')+';stroke-width:'+(is8?2:3.5)+'"/>'+
+        '<polyline points="'+mx+','+(oy+11)+' '+mx+','+(oy-11)+'" style="fill:none;stroke:var(--line);stroke-width:2"/>'+
+        '<polyline points="'+mx+','+(oy-11)+' '+(ax+aw-6)+','+(oy-11)+'" style="fill:none;stroke:'+(is8?'var(--eight)':'var(--line)')+';stroke-width:'+(is8?3.5:2)+'"/>'+
+        '<text class="sub" x="'+mx+'" y="'+(oy-38)+'" text-anchor="middle">활성화</text>'+
+        '<text class="sub" x="'+mx+'" y="'+(oy-26)+'" text-anchor="middle">함수</text>'+
+        '<text class="sub" x="'+mx+'" y="'+(oy+33)+'" text-anchor="middle">기준 0.5</text>'+
+        '<circle cx="'+qx+'" cy="'+oy+'" r="20" style="fill:'+vc+';stroke:'+vc+';stroke-width:2"/>'+
+        '<text class="big" x="'+qx+'" y="'+(oy+5.5)+'" text-anchor="middle" style="fill:var(--panel)">'+(is8?1:0)+'</text>'+
+        '<text class="sub" x="'+qx+'" y="'+(oy-28)+'" text-anchor="middle">출력</text>'+
+        '<text x="'+qx+'" y="'+(oy+36)+'" text-anchor="middle" style="font-weight:700;font-size:12px;fill:'+vc+'">숫자 '+(is8?8:1)+'</text>';
+    }else{
+      var O=s.length,ox2=204,r=24,bx=244,bw=54,qx2=325,win=winner(s),pr=softmax(s),ry=function(j){return oy+(j-(O-1)/2)*17},oys=O===2?[128,264]:[92,196,300],wc=DCOL[cfg.classes[win]],o;
+      for(o=0;o<O;o++)if(o!==cur.so)h+=edgeSet(o,ix,ox2,oys[o],cells,ys,false);
+      h+=edgeSet(cur.so,ix,ox2,oys[cur.so],cells,ys,true)+nodes+foot+
+        '<text class="sub" x="120" y="12" text-anchor="middle">숫자 '+cfg.classes[cur.so]+' 노드의 가중치 w'+subn(cfg.classes[cur.so])+',₁ ~ w'+subn(cfg.classes[cur.so])+',₁₅</text>';
+      for(o=0;o<O;o++){
+        var dc=DCOL[cfg.classes[o]],isW=o===win,isS=o===cur.so;
+        h+='<line x1="'+(ox2+r)+'" y1="'+oys[o]+'" x2="'+bx+'" y2="'+ry(o)+'" style="stroke:'+(isW?dc:'var(--line)')+';stroke-width:'+(isW?2.5:1.2)+'"/>'+
+          '<g data-o="'+o+'"><circle cx="'+ox2+'" cy="'+oys[o]+'" r="'+r+'" style="fill:'+(isS?'color-mix(in srgb,var(--sel) 14%,var(--panel))':'var(--panel)')+';stroke:'+dc+';stroke-width:'+(isW?4.5:2)+'"/>'+
+          '<text x="'+ox2+'" y="'+(oys[o]-7)+'" text-anchor="middle" style="fill:'+dc+';font-weight:700">숫자 '+cfg.classes[o]+'</text>'+
+          '<text class="big" x="'+ox2+'" y="'+(oys[o]+11)+'" text-anchor="middle" style="font-size:13.5px">'+fmt(s[o],2)+'</text></g>';
+      }
+      var bh=O*17+10;
+      h+='<rect x="'+bx+'" y="'+(oy-bh/2)+'" width="'+bw+'" height="'+bh+'" rx="6" style="fill:var(--panel);stroke:var(--ink);stroke-width:2"/>'+
+        '<text class="sub" x="'+(bx+bw/2)+'" y="'+(oy-bh/2-7)+'" text-anchor="middle">소프트맥스</text>'+
+        '<text class="sub" x="'+(bx+bw/2)+'" y="'+(oy+bh/2+13)+'" text-anchor="middle">확률</text>';
+      for(o=0;o<O;o++){
+        h+='<text x="'+(bx+7)+'" y="'+(ry(o)+3.5)+'" style="fill:'+DCOL[cfg.classes[o]]+';font-weight:700">'+cfg.classes[o]+'</text>'+
+          '<text x="'+(bx+bw-6)+'" y="'+(ry(o)+3.5)+'" text-anchor="end" style="'+(o===win?'font-weight:700':'fill:var(--sub)')+'">'+pct(pr[o])+'</text>';
+      }
+      h+='<line x1="'+(bx+bw)+'" y1="'+ry(win)+'" x2="'+(qx2-16)+'" y2="'+oy+'" style="stroke:'+wc+';stroke-width:2.5"/>'+
+        '<circle cx="'+qx2+'" cy="'+oy+'" r="16" style="fill:'+wc+'"/>'+
+        '<text class="big" x="'+qx2+'" y="'+(oy+5.5)+'" text-anchor="middle" style="fill:var(--panel)">'+cfg.classes[win]+'</text>'+
+        '<text class="sub" x="'+qx2+'" y="'+(oy-23)+'" text-anchor="middle">판정</text>';
+    }
+    $("net").innerHTML=h;
+  }
+  function polyHtml(c){
+    var W=wSym();
+    return '<i>L</i>('+W+') = '+(c.A<0?'−':'')+trim(c.A)+W+'<sup>2</sup> '+(c.B<0?'− ':'+ ')+trim(c.B)+W+' + '+trim(c.C);
+  }
+  function renderDerive(){
+    var o=cur.so,k=cur.sk,W=wSym(),n=cur.data.length,m=0,h="";
+    $("dTitle").innerHTML='<span class="m"><i>L</i>('+W+')</span>의 식이 만들어지는 과정';
+    var pv0=cfg.single?'예측값':'가중합',pk0='<i>p</i><sub>'+(k+1)+'</sub>';
+    $("dIntro").innerHTML=(cfg.single?'':'<b style="color:'+DCOL[cfg.classes[o]]+'">'+nodeName(o)+'</b>의 계산입니다. ')+
+      '그림마다 ①~④의 순서로 ('+pv0+' − 정답)<sup>2</sup>을 구합니다. <span class="m">'+W+'</span>'+jo('은','는')+' 파란 테두리 칸('+cellName(k)+')에 곱해지는 가중치입니다. '+
+      '이 칸을 칠한 그림은 칸의 값이 1이라 '+pv0+'에 <span class="m">'+W+'</span>'+jo('이','가')+' 남고, 칠하지 않은 그림은 칸의 값이 0이라 <span class="m">'+W+'</span>'+jo('이','가')+' 사라집니다. '+
+      pv0+'은 <span class="m">'+W+pk0+' + (나머지 칸의 가중합)</span>입니다. 나머지 칸의 가중합은 그 그림에서 칠한 다른 칸들의 가중치를 지금 값으로 더한 수입니다. 가중치가 모두 0인 처음에는 이 값이 0이라 식에서 생략하고, 학습이 진행되면 식에 나타납니다.'+
+      (cfg.single?' 정답은 숫자 8 그림이면 1, 숫자 1 그림이면 0입니다.':' 정답은 숫자 '+cfg.classes[o]+' 그림이면 1, 아니면 0입니다.');
+    var pv=cfg.single?'예측값':'가중합',pk='<i>p</i><sub>'+(k+1)+'</sub>';
+    cur.data.forEach(function(d){
+      var p=d.cells[k],rest=sums(d.cells)[o]-cur.W[o][k]*p,t0=target(d,o),c=rest-t0,raw,fin,line2;
+      var z=Math.abs(rest)<0.005,rs=fmt(rest,2).replace(/^−(.*)$/,'($&)');
+      if(p){
+        m++;
+        var cs=fmt(Math.abs(c),2);
+        line2=W+' × 1'+(z?'':' + '+rs);
+        raw='('+W+(z?' × 1':' + '+rs)+' − '+t0+')<sup>2</sup>';
+        fin=parseFloat(cs)===0?W+'<sup>2</sup>':'('+W+(c<0?' − ':' + ')+(z?trim(c):cs)+')<sup>2</sup>';
+      }else{
+        line2=W+' × 0'+(z?' = 0':' + '+rs+' = '+fmt(rest,2));
+        raw='('+(z?'0':fmt(rest,2))+' − '+t0+')<sup>2</sup>';
+        fin=z?trim(c*c):fmt(c*c,3);
+      }
+      h+='<div class="term '+(p?'has':'none')+'">'+mini(d.cells,k,true)+
+        '<div class="st"><span class="lb">① 파란 테두리 칸의 값</span><span class="m">'+pk+' = '+p+'</span> <span>('+(p?'흰색, 칠함':'검은색, 칠하지 않음')+')</span></div>'+
+        '<div class="st"><span class="lb">② '+pv+' = <span class="m" style="font-size:12.5px">'+W+pk+'</span>'+(z?'':' + (나머지 칸의 가중합)')+'</span><span class="m">'+line2+'</span>'+(z?'<span class="lb">나머지 칸의 가중합은 0이라 생략</span>':'')+'</div>'+
+        '<div class="st"><span class="lb">③ 정답</span><span class="m">'+t0+'</span> <span>(숫자 '+d.c+' 그림)</span></div>'+
+        '<div class="st"><span class="lb">④ ('+pv+' − 정답)<sup>2</sup></span><span class="m">'+raw+'</span><div class="fx tnum">= '+fin+'</div></div>'+
+        '<span class="tag">'+(p?'<span class="m">'+W+'</span>에 대한 이차식':'<span class="m">'+W+'</span>'+jo('이','가')+' 없는 상수')+'</span></div>';
+    });
+    $("terms").innerHTML=h;
+    var c2=coef(o,k);
+    $("dSum").innerHTML='<i>L</i>('+W+') = <span class="frac"><span>1</span><span>'+n+'</span></span> × '+
+      (cfg.single?'(④의 결과 '+n+'개의 합)':'{(④의 결과 '+n+'개의 합) + '+fmt(c2.other,3)+'}')+'<br>= '+polyHtml(c2).replace(/^.*? = /,'');
+    $("dWhy").innerHTML=(cfg.single?'':'더한 수 '+fmt(c2.other,3)+'은 다른 출력 노드의 (가중합 − 정답)<sup>2</sup>의 합입니다. <span class="m">'+W+'</span>'+jo('은','는')+' '+nodeName(o)+'에만 연결되므로 이 값은 상수입니다. ')+
+      '<span class="m">'+W+'</span>'+jo('이','가')+' 들어 있는 식이 '+m+'개이므로 이차항의 계수는 <span class="m"><span class="frac"><span>'+m+'</span><span>'+n+'</span></span> = '+trim(n?m/n:0)+'</span>입니다.'+
+      (m===0?' 이 칸을 칠한 그림이 없어서 손실함수는 상수함수이고, 이 가중치는 학습되지 않습니다.':'')+
+      ' 카드의 수는 소수 둘째 자리까지 나타낸 값입니다.';
+  }
+  function renderSel(){
+    var c=coef(cur.so,cur.sk),W=wSym(),v=cur.W[cur.so][cur.sk];
+    $("expanded").innerHTML=polyHtml(c);
+    $("wLabel").innerHTML='가중치 <span class="m">'+W+'</span>'+jo('을','를')+' 직접 움직이기 ('+(cfg.single?'':nodeName(cur.so)+', ')+cellName(cur.sk)+')';
+    $("lblW").innerHTML='<span class="m">'+W+'</span>';
+    $("vW").textContent=fmt(v,3);
+    $("vD").textContent=fmt(2*c.A*v+c.B,3);
+    $("wRange").value=Math.max(WMIN,Math.min(WMAX,v));
+    renderDerive();
+    drawChart(c);
+  }
+  function renderStats(){
+    $("vL").textContent=fmt(loss(),4);$("vN").textContent=cur.steps;
+    $("acc").textContent=cur.data.length+"개 중 "+nOk()+"개";
+  }
+  function renderTrack(){
+    if(!cfg.single)return;
+    var z=tpos(0.5);
+    var h='<div class="zone1" style="width:'+z+'%"></div><div class="zone8" style="left:'+z+'%"></div>'+
+      '<div class="thr" style="left:'+z+'%"><span>기준 0.5</span></div>'+
+      '<div class="lane" style="top:22px">정답 1</div><div class="lane" style="top:48px">정답 8</div>';
+    cur.data.forEach(function(d){
+      var wrong=verdict(d.cells)!==d.c;
+      h+='<div class="tdot d'+d.c+(wrong?' wrong':'')+'" style="left:'+tpos(sums(d.cells)[0])+'%;top:'+(d.c===8?58:32)+'px"></div>';
+    });
+    if(sum(cur.pad)>0)h+='<div class="lane" style="top:70px">내 그림</div><div class="tdot mine" style="left:'+tpos(sums(cur.pad)[0])+'%;top:80px"></div>';
+    $("track").innerHTML=h;
+  }
+  function renderPad(){
+    var btns=$("pad").children,x=sum(cur.pad),s=sums(cur.pad),v=verdict(cur.pad);
+    for(var i=0;i<15;i++){btns[i].classList.toggle("on",!!cur.pad[i]);btns[i].setAttribute("aria-pressed",cur.pad[i]?"true":"false")}
+    $("myCalc").innerHTML='칠한 '+x+'칸의 가중치의 합 = '+fmt(s[0],3);
+    if(!cfg.single){
+      var h='<div class="bar" style="color:var(--sub);font-size:12px"><span></span><span>확률</span><span>가중합 → 확률</span></div>',win=winner(s),pr=softmax(s);
+      s.forEach(function(val,o){
+        h+='<div class="bar'+(x>0&&o===win?' win':'')+'"><span style="color:'+DCOL[cfg.classes[o]]+'">'+nodeName(o)+'</span>'+
+          '<div class="tr"><div class="fl" style="left:0;width:'+(pr[o]*100).toFixed(1)+'%;background:'+DCOL[cfg.classes[o]]+'"></div></div><span>'+fmt(val,2)+' → '+pct(pr[o])+'</span></div>';
+      });
+      $("bars").innerHTML=h;
+    }
+    $("myVerdict").innerHTML=x===0?'<span class="hint">칸을 눌러 숫자를 그려 보세요.</span>':
+      '판정 <span class="pill d'+v+'">'+v+'</span>';
+  }
+  function setup(cv){
+    var r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+    cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.height*dpr);
+    var g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,r.width,r.height);
+    g.font='11px "IBM Plex Sans KR",sans-serif';
+    return {g:g,W:r.width,H:r.height};
+  }
+  function drawChart(c){
+    var s=setup($("chart")),g=s.g,W=s.W,H=s.H,ml=36,mr=10,mt=12,mb=24;
+    var f=function(t){return c.A*t*t+c.B*t+c.C};
+    var ymax=Math.max(f(WMIN),f(WMAX),0.05)*1.08;
+    var X=function(t){return ml+(t-WMIN)/(WMAX-WMIN)*(W-ml-mr)},Y=function(v){return mt+(1-v/ymax)*(H-mt-mb)};
+    g.fillStyle=css("--sub");g.strokeStyle=css("--line");g.lineWidth=1;g.textAlign="center";
+    for(var i=-3;i<=4;i++){var t=i*0.2;g.beginPath();g.moveTo(X(t),mt);g.lineTo(X(t),H-mb);g.stroke();g.fillText(t.toFixed(1).replace("-","−"),X(t),H-mb+14)}
+    g.textAlign="right";
+    var ys=ymax/4;
+    for(var j=0;j<=4;j++){var v=j*ys;g.beginPath();g.moveTo(ml,Y(v));g.lineTo(W-mr,Y(v));g.stroke();g.fillText(v.toFixed(2),ml-5,Y(v)+4)}
+    g.strokeStyle=css("--ink");g.lineWidth=2;g.beginPath();
+    for(var q=0;q<=140;q++){var tt=WMIN+q/140*(WMAX-WMIN);if(q)g.lineTo(X(tt),Y(f(tt)));else g.moveTo(X(tt),Y(f(tt)))}
+    g.stroke();
+    var a=cur.W[cur.so][cur.sk];
+    if(a>=WMIN&&a<=WMAX){
+      var sl=2*c.A*a+c.B,d=0.2;
+      g.save();g.beginPath();g.rect(ml,mt,W-ml-mr,H-mt-mb);g.clip();
+      g.strokeStyle=css("--sel");g.lineWidth=1.5;g.beginPath();
+      g.moveTo(X(a-d),Y(f(a)-sl*d));g.lineTo(X(a+d),Y(f(a)+sl*d));g.stroke();g.restore();
+      g.fillStyle=css("--sel");g.beginPath();g.arc(X(a),Y(f(a)),6,0,7);g.fill();
+      g.strokeStyle=css("--panel");g.lineWidth=2;g.stroke();
+    }else{
+      g.fillStyle=css("--bad");g.textAlign="center";g.fillText("현재 가중치가 그래프 범위 밖에 있습니다",(ml+W-mr)/2,mt+24);
+    }
+  }
+  function drawHist(){
+    var s=setup($("histc")),g=s.g,W=s.W,H=s.H,ml=36,mr=10,mt=10,mb=20,hs=cur.hist;
+    var n=hs.length,ymax=Math.max.apply(null,hs.concat([0.05]))*1.08,xmax=Math.max(10,n-1);
+    var X=function(i){return ml+i/xmax*(W-ml-mr)},Y=function(v){return mt+(1-Math.min(v,ymax)/ymax)*(H-mt-mb)};
+    g.fillStyle=css("--sub");g.strokeStyle=css("--line");g.lineWidth=1;g.textAlign="right";
+    [0,ymax/2,ymax].forEach(function(v){g.beginPath();g.moveTo(ml,Y(v));g.lineTo(W-mr,Y(v));g.stroke();g.fillText(v.toFixed(2),ml-5,Y(v)+4)});
+    g.textAlign="left";g.fillText("0",ml,H-mb+14);g.textAlign="right";g.fillText(xmax+"회",W-mr,H-mb+14);
+    g.strokeStyle=css("--sel");g.lineWidth=2;g.beginPath();
+    hs.forEach(function(v,i){if(i)g.lineTo(X(i),Y(v));else g.moveTo(X(i),Y(v))});
+    g.stroke();
+    g.fillStyle=css("--sel");g.beginPath();g.arc(X(n-1),Y(hs[n-1]),4,0,7);g.fill();
+  }
+  function renderAll(){renderSamples();renderMap();renderSel();renderStats();renderTrack();renderPad();drawHist()}
+  function say(id,t,warn){var m=$(id);m.innerHTML=t;m.className="msg tnum"+(warn?" warn":"")}
+  function stopAuto(){if(timer){clearInterval(timer);timer=null;$("auto").textContent="자동 실행"}}
+  function record(){cur.hist.push(loss());if(cur.hist.length>400)cur.hist.shift()}
+  function newHist(){cur.hist=[];record()}
+  function stepAll(){
+    var eta=parseFloat($("eta").value),n=cur.data.length,before=loss(),G=cur.W.map(zeros);
+    cur.data.forEach(function(d){var s=sums(d.cells);for(var o=0;o<s.length;o++){var e=s[o]-target(d,o);for(var k=0;k<15;k++)G[o][k]+=2*d.cells[k]*e/n}});
+    for(var o=0;o<cur.W.length;o++)for(var k=0;k<15;k++)cur.W[o][k]-=eta*G[o][k];
+    cur.steps++;record();
+    var now=loss();
+    if(now>1000){stopAuto();say("msg","손실함수의 값이 계속 커집니다. 학습률이 너무 큽니다.",true)}
+    else if(now>before+1e-12)say("msg","손실함수의 값이 "+fmt(before,4)+"에서 "+fmt(now,4)+"로 커졌습니다.",true);
+    else say("msg","가중치 "+(15*cur.W.length)+"개를 각각 접선의 기울기 반대쪽으로 옮겼습니다. 손실함수의 값 "+fmt(before,4)+" → "+fmt(now,4));
+    renderAll();
+  }
+  function stepOne(){
+    var eta=parseFloat($("eta").value),c=coef(cur.so,cur.sk),v=cur.W[cur.so][cur.sk],d=2*c.A*v+c.B,nw=v-eta*d,W=wSym();
+    say("msg2",'<span class="m">'+W+' − <i>η</i><i>L</i>′('+W+') = '+fmt(v,3)+' − '+eta+' × ('+fmt(d,3)+') = '+fmt(nw,3)+'</span>');
+    cur.W[cur.so][cur.sk]=nw;cur.steps++;record();renderAll();
+  }
+  function resetW(){
+    stopAuto();cur.W=cur.W.map(zeros);cur.steps=0;newHist();
+    say("msg",cfg.single?"가중치가 모두 0이라 모든 그림을 1로 판정합니다. 한 번 이동을 눌러 보세요.":"가중치가 모두 0이라 가중합이 모두 같고, 모든 그림을 1로 판정합니다. 한 번 이동을 눌러 보세요.");
+    say("msg2","");renderAll();
+  }
+  function show(i,keepHash){
+    stopAuto();ci=i;cfg=CH[i];
+    if(!S[i]){S[i]=fresh(cfg);cur=S[i];cur.feed=firstOf(8);newHist();}
+    cur=S[i];
+    renderText();
+    say("msg",cur.steps?"":"가중치가 모두 0입니다. 한 번 이동을 눌러 보세요.");say("msg2","");
+    renderAll();
+    if(!keepHash){try{location.hash="chapter-"+(i+1)}catch(e){}}
+  }
+  function fromHash(){var m=/^#chapter-([123])$/.exec(location.hash||"");return m?+m[1]-1:0}
+  function selectW(o,k){cur.so=o;cur.sk=k;say("msg2","");renderSamples();renderMap();renderSel()}
+
+  var padEl=$("pad"),i,b;
+  for(i=0;i<15;i++){
+    b=document.createElement("button");b.type="button";b.className="cellbtn";b.dataset.i=i;
+    b.setAttribute("aria-label",cellName(i));padEl.appendChild(b);
+  }
+  var ax="";[0,0.5,1].forEach(function(v){ax+='<span style="left:'+tpos(v)+'%">'+v+'</span>'});$("axis2").innerHTML=ax;
+  document.querySelector(".tabs").addEventListener("click",function(e){var t=e.target.closest(".tab");if(t)show(+t.dataset.ch)});
+  window.addEventListener("hashchange",function(){var n=fromHash();if(n!==ci)show(n,true)});
+  $("maps").addEventListener("click",function(e){var t=e.target.closest(".wcell");if(t)selectW(+t.dataset.o,+t.dataset.k)});
+  $("net").addEventListener("click",function(e){
+    var t=e.target.closest("[data-k]");if(t){selectW(cur.so,+t.getAttribute("data-k"));return}
+    t=e.target.closest("[data-o]");if(t)selectW(+t.getAttribute("data-o"),cur.sk);
+  });
+  padEl.addEventListener("click",function(e){var t=e.target.closest(".cellbtn");if(!t)return;cur.pad[+t.dataset.i]^=1;cur.feed="pad";renderSamples();renderPad();renderTrack();renderNet()});
+  $("addBtns").addEventListener("click",function(e){
+    var t=e.target.closest("button");if(!t)return;
+    if(t.id==="clearPad"){cur.pad=zeros();renderPad();renderTrack();renderNet();return}
+    if(sum(cur.pad)===0)return;
+    stopAuto();cur.data.push({cells:cur.pad.slice(),c:+t.dataset.add,base:false});cur.pad=zeros();cur.feed=cur.data.length-1;newHist();renderAll();
+  });
+  $("samples").addEventListener("click",function(e){
+    var t=e.target.closest("[data-del]");
+    if(!t){var c=e.target.closest("[data-feed]");if(c){cur.feed=+c.dataset.feed;renderSamples();renderNet()}return}
+    stopAuto();cur.data.splice(+t.dataset.del,1);cur.feed=0;newHist();renderAll();
+  });
+  $("resetData").addEventListener("click",function(){stopAuto();cur.data=base(cfg);cur.feed=firstOf(8);newHist();renderAll()});
+  $("stepAll").addEventListener("click",function(){stopAuto();stepAll()});
+  $("stepOne").addEventListener("click",function(){stopAuto();stepOne()});
+  $("auto").addEventListener("click",function(){
+    if(timer){stopAuto();return}
+    $("auto").textContent="멈춤";var left=200;
+    timer=setInterval(function(){if(left--<=0){stopAuto();return}stepAll()},150);
+  });
+  $("resetW").addEventListener("click",resetW);
+  $("wRange").addEventListener("input",function(){
+    stopAuto();cur.W[cur.so][cur.sk]=parseFloat(this.value);cur.hist[cur.hist.length-1]=loss();
+    renderSamples();renderMap();renderStats();renderTrack();renderPad();drawHist();
+    var c=coef(cur.so,cur.sk),v=cur.W[cur.so][cur.sk];$("vW").textContent=fmt(v,3);$("vD").textContent=fmt(2*c.A*v+c.B,3);drawChart(c);
+  });
+  function redraw(){drawChart(coef(cur.so,cur.sk));drawHist()}
+  window.addEventListener("resize",redraw);
+  try{
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",redraw);
+    new MutationObserver(redraw).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+    if(document.fonts&&document.fonts.ready)document.fonts.ready.then(redraw);
+  }catch(e){}
+  show(fromHash(),true);
+})();
+</script>
+</body>
+</html>
