@@ -432,7 +432,7 @@
             <div class="fx tnum" id="expanded"></div>
             <div class="chart-wrap c-main"><canvas id="chart" role="img" aria-label="선택한 가중치에 대한 손실함수의 그래프"></canvas></div>
             <label for="wRange" class="hint" id="wLabel"></label>
-            <input type="range" id="wRange" min="-0.6" max="0.8" step="0.01" value="0">
+            <input type="range" id="wRange" min="-1.2" max="1.2" step="0.01" value="0">
             <div class="metrics">
               <div class="metric"><div class="label" id="lblW"></div><div class="value tnum" id="vW"></div></div>
               <div class="metric"><div class="label">접선의 기울기</div><div class="value tnum" id="vD"></div></div>
@@ -518,19 +518,19 @@
     [".#.",".#.",".#.",".#.","...",1],
     [".#.",".#.",".#.",".#.",".#.",1],
     ["##.",".#.",".#.",".#.",".#.",1],
-    [".#.",".#.",".#.",".#.","###",1],
+    ["##.","##.","##.","##.","##.",1],
     ["###","..#","..#","..#","..#",7],
     ["###","..#",".#.",".#.",".#.",7],
     ["###","#.#","..#","..#","..#",7],
     ["###","..#",".#.","#..","#..",7],
-    ["###","#.#",".#.","#.#","###",8],
+    [".#.","#.#",".#.","#.#",".#.",8],
     [".##","#.#","###","#.#","###",8],
     ["###","#.#","###","#.#","###",8],
     ["###","###","###","#.#","###",8]
   ];
   var CH=[{classes:[1,8],single:true},{classes:[1,8],single:false},{classes:[1,7,8],single:false}];
   var DCOL={1:"var(--one)",7:"var(--seven)",8:"var(--eight)"};
-  var TMIN=-0.25,TMAX=1.5,WMIN=-0.6,WMAX=0.8;
+  var TMIN=-1.5,TMAX=1.5,WMIN=-1.2,WMAX=1.2;
   var S=[],ci=0,cfg,cur,timer=null;
   var $=function(id){return document.getElementById(id)};
   function zeros(){var z=[];for(var i=0;i<15;i++)z.push(0);return z}
@@ -543,15 +543,15 @@
   function firstOf(d){for(var i=0;i<cur.data.length;i++)if(cur.data[i].c===d)return i;return 0}
   function fresh(c){
     var W=[],n=c.single?1:c.classes.length;for(var o=0;o<n;o++)W.push(zeros());
-    return {data:base(c),W:W,so:n-1,sk:0,feed:0,pad:zeros(),steps:0,hist:[]};
+    return {data:base(c),W:W,so:n-1,sk:c.single?5:0,feed:0,pad:zeros(),steps:0,hist:[]};
   }
   function sum(c){return c.reduce(function(s,v){return s+v},0)}
   function sums(c){return cur.W.map(function(w){var s=0;for(var k=0;k<15;k++)s+=w[k]*c[k];return s})}
-  function target(d,o){return cfg.single?(d.c===8?1:0):(d.c===cfg.classes[o]?1:0)}
+  function target(d,o){return cfg.single?(d.c===8?1:-1):(d.c===cfg.classes[o]?1:0)}
   function softmax(s){var m=Math.max.apply(null,s),e=s.map(function(v){return Math.exp(v-m)}),t=sum(e);return e.map(function(v){return v/t})}
   function pct(v){return Math.round(v*100)+"%"}
   function winner(s){var b=0;for(var i=1;i<s.length;i++)if(s[i]>s[b])b=i;return b}
-  function verdict(c){var s=sums(c);return cfg.single?(s[0]>=0.5?8:1):cfg.classes[winner(s)]}
+  function verdict(c){var s=sums(c);return cfg.single?(s[0]>0?8:1):cfg.classes[winner(s)]}
   function loss(){
     var t=0,n=cur.data.length;
     cur.data.forEach(function(d){var s=sums(d.cells);for(var o=0;o<s.length;o++){var e=s[o]-target(d,o);t+=e*e}});
@@ -587,22 +587,22 @@
   function renderText(){
     var O=nOut(),N=15*O,cls=cfg.classes.join(", ");
     $("intro").innerHTML=ci===0?
-      '3×5 격자의 칸마다 가중치를 하나씩 둡니다. 예측값은 <b>칠한 칸의 가중치를 모두 더한 값</b>이고, 0.5 이상이면 8, 미만이면 1로 판정합니다. 가중치는 15개지만, 하나만 골라 움직이면 손실함수는 그 가중치에 대한 이차함수입니다.':
+      '3×5 격자의 칸마다 가중치를 하나씩 둡니다. 칠한 칸의 가중치를 모두 더한 값을 <b>가중합</b>이라 하고, 가중합이 0보다 크면 8, 0 이하이면 1로 판정합니다. 가중치는 15개지만, 하나만 골라 움직이면 손실함수는 그 가중치에 대한 이차함수입니다.':
       ci===1?
       '같은 자료를 출력 노드 2개로 분류합니다. 숫자 1 노드와 숫자 8 노드가 각자 가중합을 구하고, 소프트맥스로 확률로 바꾼 뒤 <b>확률이 더 큰 숫자</b>로 판정합니다. 기준값 0.5가 필요 없어지고, 가중치는 15 × 2 = 30개가 됩니다.':
       '숫자 7을 추가하고 출력 노드를 3개로 늘립니다. 세 노드의 가중합을 소프트맥스로 확률로 바꾼 뒤 <b>확률이 가장 큰 숫자</b>로 판정하고, 가중치는 15 × 3 = 45개입니다. 숫자가 늘어나면 출력 노드만 더 두면 됩니다.';
     $("note1").innerHTML=cfg.single?
-      '정답은 숫자 1이면 <span class="m"><i>y</i> = 0</span>, 숫자 8이면 <span class="m"><i>y</i> = 1</span>입니다. 빨간 테두리는 지금의 가중치로 잘못 판정한 그림입니다. 칠한 칸은 흰색(값 1), 칠하지 않은 칸은 검은색(값 0)입니다.':
+      '정답은 숫자 1이면 <span class="m"><i>y</i> = −1</span>, 숫자 8이면 <span class="m"><i>y</i> = 1</span>입니다. 빨간 테두리는 지금의 가중치로 잘못 판정한 그림입니다. 칠한 칸은 흰색(값 1), 칠하지 않은 칸은 검은색(값 0)입니다.':
       '출력 노드마다 정답은 자기 숫자의 그림이면 1, 아니면 0입니다. 빨간 테두리는 지금의 가중치로 잘못 판정한 그림입니다. 칠한 칸은 흰색(값 1), 칠하지 않은 칸은 검은색(값 0)입니다.';
     $("form2").innerHTML=cfg.single?
-      '(예측값) = <i>w</i><sub>1</sub><i>p</i><sub>1</sub> + <i>w</i><sub>2</sub><i>p</i><sub>2</sub> + ⋯ + <i>w</i><sub>15</sub><i>p</i><sub>15</sub>':
-      '(숫자 8 노드의 가중합) = <i>w</i><sub>8,1</sub><i>p</i><sub>1</sub> + <i>w</i><sub>8,2</sub><i>p</i><sub>2</sub> + ⋯ + <i>w</i><sub>8,15</sub><i>p</i><sub>15</sub>';
-    $("note2").innerHTML='<span class="m"><i>p</i><sub><i>k</i></sub></span>는 <span class="m"><i>k</i></span>번째 칸을 칠했으면 1, 아니면 0입니다. '+(cfg.single?
-      '손실함수 <span class="m"><i>L</i></span>은 (예측값 − 정답)<sup>2</sup>의 평균입니다.':
+      '(가중합) = <i>w</i><sub>1</sub><i>p</i><sub>1</sub> + <i>w</i><sub>2</sub><i>p</i><sub>2</sub> + ⋯ + <i>w</i><sub><i>n</i></sub><i>p</i><sub><i>n</i></sub>':
+      '(숫자 8 노드의 가중합) = <i>w</i><sub>8,1</sub><i>p</i><sub>1</sub> + <i>w</i><sub>8,2</sub><i>p</i><sub>2</sub> + ⋯ + <i>w</i><sub>8,<i>n</i></sub><i>p</i><sub><i>n</i></sub>';
+    $("note2").innerHTML='<span class="m"><i>p</i><sub><i>k</i></sub></span>는 <span class="m"><i>k</i></span>번째 칸을 칠했으면 1, 아니면 0이고, <span class="m"><i>n</i></span>은 칸의 개수 15입니다. '+(cfg.single?
+      '손실함수 <span class="m"><i>L</i></span>은 (가중합 − 정답)<sup>2</sup>의 평균입니다.':
       '출력 노드마다 가중치 15개가 따로 있습니다. <span class="m"><i>w</i><sub>8,1</sub></span>은 숫자 8 노드와 1번째 칸을 잇는 가중치이고, <span class="m"><i>w</i><sub>1,1</sub></span>은 숫자 1 노드와 1번째 칸을 잇는 가중치입니다. 손실함수 <span class="m"><i>L</i></span>은 모든 그림, 모든 출력 노드의 (가중합 − 정답)<sup>2</sup>을 더해 그림의 수로 나눈 값입니다.');
     $("stepAll").textContent=N+"개 모두 한 번 이동";
     $("note3").innerHTML=cfg.single?
-      '칸 15개가 입력 노드입니다. 연결선마다 가중치가 하나씩 있고, 칠한 칸(값 1)의 가중치만 더해져 가중합이 됩니다. 활성화 함수는 가중합이 0.5 이상이면 1(숫자 8), 미만이면 0(숫자 1)을 출력합니다. 학습 자료의 그림을 누르면 그 그림이 입력됩니다.':
+      '칸 15개가 입력 노드입니다. 연결선마다 가중치가 하나씩 있고, 칠한 칸(값 1)의 가중치만 더해져 가중합이 됩니다. 활성화 함수는 가중합이 0보다 크면 1(숫자 8), 0 이하이면 −1(숫자 1)을 출력합니다. 학습 자료의 그림을 누르면 그 그림이 입력됩니다.':
       '입력 노드 15개가 출력 노드 '+O+'개에 모두 연결됩니다. 출력 노드를 누르면 그 노드에 연결된 가중치 15개가 색으로 표시됩니다. 학습 자료의 그림을 누르면 그 그림이 입력됩니다.';
     $("note3b").innerHTML=cfg.single?
       '손실함수는 활성화 함수를 거치기 전의 가중합과 정답의 차로 계산합니다. 계단 모양의 활성화 함수는 기울기가 0인 구간뿐이라 경사하강법에 쓸 수 없기 때문입니다.':
@@ -677,7 +677,7 @@
     }
     var foot='<text class="sub" x="'+ix+'" y="388" text-anchor="middle">입력층</text>';
     if(cfg.single){
-      var ox=196,ax=240,aw=40,qx=318,v=s[0],is8=v>=0.5,vc=is8?'var(--eight)':'var(--one)',mx=ax+aw/2;
+      var ox=196,ax=240,aw=40,qx=318,v=s[0],is8=v>0,vc=is8?'var(--eight)':'var(--one)',mx=ax+aw/2;
       h=edgeSet(0,ix,ox,oy,cells,ys,true)+nodes+foot+
         '<text class="sub" x="120" y="12" text-anchor="middle">가중치 w₁ ~ w₁₅</text>'+
         '<circle cx="'+ox+'" cy="'+oy+'" r="27" style="fill:var(--panel);stroke:var(--ink);stroke-width:2"/>'+
@@ -691,9 +691,9 @@
         '<polyline points="'+mx+','+(oy-11)+' '+(ax+aw-6)+','+(oy-11)+'" style="fill:none;stroke:'+(is8?'var(--eight)':'var(--line)')+';stroke-width:'+(is8?3.5:2)+'"/>'+
         '<text class="sub" x="'+mx+'" y="'+(oy-38)+'" text-anchor="middle">활성화</text>'+
         '<text class="sub" x="'+mx+'" y="'+(oy-26)+'" text-anchor="middle">함수</text>'+
-        '<text class="sub" x="'+mx+'" y="'+(oy+33)+'" text-anchor="middle">기준 0.5</text>'+
+        '<text class="sub" x="'+mx+'" y="'+(oy+33)+'" text-anchor="middle">기준 0</text>'+
         '<circle cx="'+qx+'" cy="'+oy+'" r="20" style="fill:'+vc+';stroke:'+vc+';stroke-width:2"/>'+
-        '<text class="big" x="'+qx+'" y="'+(oy+5.5)+'" text-anchor="middle" style="fill:var(--panel)">'+(is8?1:0)+'</text>'+
+        '<text class="big" x="'+qx+'" y="'+(oy+5.5)+'" text-anchor="middle" style="fill:var(--panel)">'+(is8?'1':'−1')+'</text>'+
         '<text class="sub" x="'+qx+'" y="'+(oy-28)+'" text-anchor="middle">출력</text>'+
         '<text x="'+qx+'" y="'+(oy+36)+'" text-anchor="middle" style="font-weight:700;font-size:12px;fill:'+vc+'">숫자 '+(is8?8:1)+'</text>';
     }else{
@@ -725,36 +725,38 @@
   }
   function polyHtml(c){
     var W=wSym();
-    return '<i>L</i>('+W+') = '+(c.A<0?'−':'')+trim(c.A)+W+'<sup>2</sup> '+(c.B<0?'− ':'+ ')+trim(c.B)+W+' + '+trim(c.C);
+    var cf=function(v){var t=trim(v);return t==='1'?'':t};
+    var bz=parseFloat(trim(c.B))===0;
+    return '<i>L</i>('+W+') = '+(c.A<0?'−':'')+cf(c.A)+W+'<sup>2</sup> '+(bz?'':(c.B<0?'− ':'+ ')+cf(c.B)+W+' ')+'+ '+trim(c.C);
   }
   function renderDerive(){
     var o=cur.so,k=cur.sk,W=wSym(),n=cur.data.length,m=0,h="";
     $("dTitle").innerHTML='<span class="m"><i>L</i>('+W+')</span>의 식이 만들어지는 과정';
-    var pv0=cfg.single?'예측값':'가중합',pk0='<i>p</i><sub>'+(k+1)+'</sub>';
+    var pv0='가중합',pk0='<i>p</i><sub>'+(k+1)+'</sub>';
     $("dIntro").innerHTML=(cfg.single?'':'<b style="color:'+DCOL[cfg.classes[o]]+'">'+nodeName(o)+'</b>의 계산입니다. ')+
       '그림마다 ①~④의 순서로 ('+pv0+' − 정답)<sup>2</sup>을 구합니다. <span class="m">'+W+'</span>'+jo('은','는')+' 파란 테두리 칸('+cellName(k)+')에 곱해지는 가중치입니다. '+
       '이 칸을 칠한 그림은 칸의 값이 1이라 '+pv0+'에 <span class="m">'+W+'</span>'+jo('이','가')+' 남고, 칠하지 않은 그림은 칸의 값이 0이라 <span class="m">'+W+'</span>'+jo('이','가')+' 사라집니다. '+
       pv0+'은 <span class="m">'+W+pk0+' + (나머지 칸의 가중합)</span>입니다. 나머지 칸의 가중합은 그 그림에서 칠한 다른 칸들의 가중치를 지금 값으로 더한 수입니다. 가중치가 모두 0인 처음에는 이 값이 0이라 식에서 생략하고, 학습이 진행되면 식에 나타납니다.'+
-      (cfg.single?' 정답은 숫자 8 그림이면 1, 숫자 1 그림이면 0입니다.':' 정답은 숫자 '+cfg.classes[o]+' 그림이면 1, 아니면 0입니다.');
-    var pv=cfg.single?'예측값':'가중합',pk='<i>p</i><sub>'+(k+1)+'</sub>';
+      (cfg.single?' 정답은 숫자 8 그림이면 1, 숫자 1 그림이면 −1입니다.':' 정답은 숫자 '+cfg.classes[o]+' 그림이면 1, 아니면 0입니다.');
+    var pv='가중합',pk='<i>p</i><sub>'+(k+1)+'</sub>';
     cur.data.forEach(function(d){
-      var p=d.cells[k],rest=sums(d.cells)[o]-cur.W[o][k]*p,t0=target(d,o),c=rest-t0,raw,fin,line2;
+      var p=d.cells[k],rest=sums(d.cells)[o]-cur.W[o][k]*p,t0=target(d,o),c=rest-t0,ts=t0<0?'(−'+(-t0)+')':String(t0),raw,fin,line2;
       var z=Math.abs(rest)<0.005,rs=fmt(rest,2).replace(/^−(.*)$/,'($&)');
       if(p){
         m++;
         var cs=fmt(Math.abs(c),2);
         line2=W+' × 1'+(z?'':' + '+rs);
-        raw='('+W+(z?' × 1':' + '+rs)+' − '+t0+')<sup>2</sup>';
+        raw='('+W+(z?' × 1':' + '+rs)+' − '+ts+')<sup>2</sup>';
         fin=parseFloat(cs)===0?W+'<sup>2</sup>':'('+W+(c<0?' − ':' + ')+(z?trim(c):cs)+')<sup>2</sup>';
       }else{
         line2=W+' × 0'+(z?' = 0':' + '+rs+' = '+fmt(rest,2));
-        raw='('+(z?'0':fmt(rest,2))+' − '+t0+')<sup>2</sup>';
+        raw='('+(z?'0':fmt(rest,2))+' − '+ts+')<sup>2</sup>';
         fin=z?trim(c*c):fmt(c*c,3);
       }
       h+='<div class="term '+(p?'has':'none')+'">'+mini(d.cells,k,true)+
         '<div class="st"><span class="lb">① 파란 테두리 칸의 값</span><span class="m">'+pk+' = '+p+'</span> <span>('+(p?'흰색, 칠함':'검은색, 칠하지 않음')+')</span></div>'+
         '<div class="st"><span class="lb">② '+pv+' = <span class="m" style="font-size:12.5px">'+W+pk+'</span>'+(z?'':' + (나머지 칸의 가중합)')+'</span><span class="m">'+line2+'</span>'+(z?'<span class="lb">나머지 칸의 가중합은 0이라 생략</span>':'')+'</div>'+
-        '<div class="st"><span class="lb">③ 정답</span><span class="m">'+t0+'</span> <span>(숫자 '+d.c+' 그림)</span></div>'+
+        '<div class="st"><span class="lb">③ 정답</span><span class="m">'+String(t0).replace("-","−")+'</span> <span>(숫자 '+d.c+' 그림)</span></div>'+
         '<div class="st"><span class="lb">④ ('+pv+' − 정답)<sup>2</sup></span><span class="m">'+raw+'</span><div class="fx tnum">= '+fin+'</div></div>'+
         '<span class="tag">'+(p?'<span class="m">'+W+'</span>에 대한 이차식':'<span class="m">'+W+'</span>'+jo('이','가')+' 없는 상수')+'</span></div>';
     });
@@ -784,9 +786,9 @@
   }
   function renderTrack(){
     if(!cfg.single)return;
-    var z=tpos(0.5);
+    var z=tpos(0);
     var h='<div class="zone1" style="width:'+z+'%"></div><div class="zone8" style="left:'+z+'%"></div>'+
-      '<div class="thr" style="left:'+z+'%"><span>기준 0.5</span></div>'+
+      '<div class="thr" style="left:'+z+'%"><span>기준 0</span></div>'+
       '<div class="lane" style="top:22px">정답 1</div><div class="lane" style="top:48px">정답 8</div>';
     cur.data.forEach(function(d){
       var wrong=verdict(d.cells)!==d.c;
@@ -823,7 +825,7 @@
     var ymax=Math.max(f(WMIN),f(WMAX),0.05)*1.08;
     var X=function(t){return ml+(t-WMIN)/(WMAX-WMIN)*(W-ml-mr)},Y=function(v){return mt+(1-v/ymax)*(H-mt-mb)};
     g.fillStyle=css("--sub");g.strokeStyle=css("--line");g.lineWidth=1;g.textAlign="center";
-    for(var i=-3;i<=4;i++){var t=i*0.2;g.beginPath();g.moveTo(X(t),mt);g.lineTo(X(t),H-mb);g.stroke();g.fillText(t.toFixed(1).replace("-","−"),X(t),H-mb+14)}
+    for(var i=-3;i<=3;i++){var t=i*0.4;g.beginPath();g.moveTo(X(t),mt);g.lineTo(X(t),H-mb);g.stroke();g.fillText(t.toFixed(1).replace("-","−"),X(t),H-mb+14)}
     g.textAlign="right";
     var ys=ymax/4;
     for(var j=0;j<=4;j++){var v=j*ys;g.beginPath();g.moveTo(ml,Y(v));g.lineTo(W-mr,Y(v));g.stroke();g.fillText(v.toFixed(2),ml-5,Y(v)+4)}
@@ -897,7 +899,7 @@
     b=document.createElement("button");b.type="button";b.className="cellbtn";b.dataset.i=i;
     b.setAttribute("aria-label",cellName(i));padEl.appendChild(b);
   }
-  var ax="";[0,0.5,1].forEach(function(v){ax+='<span style="left:'+tpos(v)+'%">'+v+'</span>'});$("axis2").innerHTML=ax;
+  var ax="";[-1,0,1].forEach(function(v){ax+='<span style="left:'+tpos(v)+'%">'+String(v).replace("-","−")+'</span>'});$("axis2").innerHTML=ax;
   window.addEventListener("hashchange",function(){var n=fromHash();if(n!==ci)show(n,true)});
   $("maps").addEventListener("click",function(e){var t=e.target.closest(".wcell");if(t)selectW(+t.dataset.o,+t.dataset.k)});
   $("net").addEventListener("click",function(e){
