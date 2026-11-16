@@ -21,14 +21,6 @@ const TOOLS = [
     url: "./gradient-descent-2/"
   },
   {
-    title: "시어핀스키 삼각형 탐구",
-    subject: "미적분Ⅱ",
-    symbol: "△",
-    description: "반복 규칙이 만들어내는 프랙탈 구조와 자기유사성을 탐구합니다.",
-    tags: ["프랙탈", "반복", "도형"],
-    url: "./sierpinski/"
-  },
-  {
     title: "퍼셉트론 논리 연산 실험실",
     subject: "인공지능 수학",
     symbol: "⊕",
