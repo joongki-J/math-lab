@@ -360,6 +360,28 @@
   [hidden]{display:none !important}
   .axis2{position:relative;height:16px;font-size:11px;color:var(--sub)}
   .axis2 span{position:absolute;transform:translateX(-50%)}
+
+  .animbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  #animStep{font-size:12.5px;color:var(--sub);margin-left:4px}
+  .strip{display:flex;flex-wrap:wrap;gap:5px}
+  .strip span{padding:2px;border-radius:5px;border:2px solid transparent;opacity:.3;transition:opacity .3s}
+  .strip span.done{opacity:1}
+  .strip span.cur{opacity:1;border-color:#2b4acb}
+  .stagewrap{display:grid;gap:12px;grid-template-columns:minmax(0,1fr);align-items:start}
+  @media (min-width:640px){.stagewrap{grid-template-columns:minmax(190px,250px) minmax(0,1fr)}}
+  .stagehead{font-size:12px;font-weight:700;color:#2b4acb;margin-bottom:4px}
+  .term.stage{max-width:300px}
+  .term .st.off,.term .tag.off{visibility:hidden}
+  .accum{display:grid;gap:8px;align-content:start;min-width:0}
+  #accText{white-space:normal;line-height:1.9;font-size:15px}
+  #accText .acclb{display:block;font-family:var(--font-body);font-size:12px;color:var(--sub);line-height:1.5;margin:2px 0}
+  .newterm{color:#2b4acb;font-weight:700}
+  #accText .tm{white-space:nowrap}
+  @keyframes stIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  @keyframes cardIn{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+  .pop,.newterm{animation:stIn .5s ease}
+  .term.enter{animation:cardIn .4s ease}
+  @media (prefers-reduced-motion:reduce){.pop,.newterm,.term.enter{animation:none}}
 </style>
 </head>
 <body>
@@ -445,6 +467,9 @@
           <summary><span id="dTitle"></span> 펼쳐 보기</summary>
           <div class="foldin">
             <p class="hint" id="dIntro"></p>
+            <div class="animbar"><button class="btn primary" id="animPlay" type="button">차례로 보기</button><button class="btn" id="animPrev" type="button">◀ 이전</button><button class="btn" id="animNext" type="button">다음 ▶</button><button class="btn" id="animAll" type="button">모두 보기</button><span id="animStep" class="tnumx"></span></div>
+            <div class="strip" id="animStrip" aria-label="그림 8장의 계산 진행"></div>
+            <div class="stagewrap"><div id="animStage"></div><div class="accum"><div class="fx tnum" id="accText"></div><div class="chart-wrap c-small"><canvas id="accChart" role="img" aria-label="지금까지 더한 값의 그래프"></canvas></div></div></div>
             <div class="terms" id="terms"></div>
             <div class="fx tnum" id="dSum"></div>
             <p class="hint tnum" id="dWhy"></p>
@@ -730,7 +755,7 @@
     return '<i>L</i>('+W+') = '+(c.A<0?'−':'')+cf(c.A)+W+'<sup>2</sup> '+(bz?'':(c.B<0?'− ':'+ ')+cf(c.B)+W+' ')+'+ '+trim(c.C);
   }
   function renderDerive(){
-    var o=cur.so,k=cur.sk,W=wSym(),n=cur.data.length,m=0,h="";
+    var o=cur.so,k=cur.sk,W=wSym(),n=cur.data.length,m=0,h="";DC=[];
     $("dTitle").innerHTML='<span class="m"><i>L</i>('+W+')</span>의 식이 만들어지는 과정';
     var pv0='가중합',pk0='<i>p</i><sub>'+(k+1)+'</sub>';
     $("dIntro").innerHTML=(cfg.single?'':'<b style="color:'+DCOL[cfg.classes[o]]+'">'+nodeName(o)+'</b>의 계산입니다. ')+
@@ -753,14 +778,16 @@
         raw='('+(z?'0':fmt(rest,2))+' − '+ts+')<sup>2</sup>';
         fin=z?trim(c*c):fmt(c*c,3);
       }
-      h+='<div class="term '+(p?'has':'none')+'">'+mini(d.cells,k,true)+
+      var ch='<div class="term '+(p?'has':'none')+'">'+mini(d.cells,k,true)+
         '<div class="st"><span class="lb">① 파란 테두리 칸의 값</span><span class="m">'+pk+' = '+p+'</span> <span>('+(p?'흰색, 칠함':'검은색, 칠하지 않음')+')</span></div>'+
         '<div class="st"><span class="lb">② '+pv+' = <span class="m" style="font-size:12.5px">'+W+pk+'</span>'+(z?'':' + (나머지 칸의 가중합)')+'</span><span class="m">'+line2+'</span>'+(z?'<span class="lb">나머지 칸의 가중합은 0이라 생략</span>':'')+'</div>'+
         '<div class="st"><span class="lb">③ 정답</span><span class="m">'+String(t0).replace("-","−")+'</span> <span>(숫자 '+d.c+' 그림)</span></div>'+
         '<div class="st"><span class="lb">④ ('+pv+' − 정답)<sup>2</sup></span><span class="m">'+raw+'</span><div class="fx tnum">= '+fin+'</div></div>'+
         '<span class="tag">'+(p?'<span class="m">'+W+'</span>에 대한 이차식':'<span class="m">'+W+'</span>'+jo('이','가')+' 없는 상수')+'</span></div>';
+      DC.push({html:ch,fin:fin,p:p,c:c,cells:d.cells});h+=ch;
     });
     $("terms").innerHTML=h;
+    renderAnim();
     var c2=coef(o,k);
     $("dSum").innerHTML='<i>L</i>('+W+') = <span class="frac"><span>1</span><span>'+n+'</span></span> × '+
       (cfg.single?'(④의 결과 '+n+'개의 합)':'{(④의 결과 '+n+'개의 합) + '+fmt(c2.other,3)+'}')+'<br>= '+polyHtml(c2).replace(/^.*? = /,'');
@@ -889,10 +916,73 @@
     renderText();
     say("msg",cur.steps?"":"가중치가 모두 0입니다. 한 번 이동을 눌러 보세요.");say("msg2","");
     renderAll();
+    if(foldOpen())startAnim();
     if(!keepHash){try{location.hash="ch"+(i+1)}catch(e){}}
   }
   function fromHash(){var m=/^#(?:ch|chapter-)([123])$/.exec(location.hash||"");return m?+m[1]-1:0}
-  function selectW(o,k){cur.so=o;cur.sk=k;say("msg2","");renderSamples();renderMap();renderSel()}
+  function selectW(o,k){cur.so=o;cur.sk=k;say("msg2","");renderSamples();renderMap();renderSel();if(foldOpen())startAnim()}
+  // ===== 식이 만들어지는 과정 애니메이션 =====
+  var DC=[],ANIM={k:0,sub:4,done:true,playing:false,t:null},ACC_CNT=0;
+  var RM=false;try{RM=window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){}
+  function foldOpen(){var f=document.querySelector(".fold");return !!(f&&f.open)}
+  function termVal(t,w){return t.p?(w+t.c)*(w+t.c):t.c*t.c}
+  function accSum(cnt,w){var s=0;for(var i=0;i<cnt;i++)s+=termVal(DC[i],w);return s}
+  function animStop(){if(ANIM.t){clearTimeout(ANIM.t);ANIM.t=null}ANIM.playing=false}
+  function renderAnim(){
+    var n=DC.length;if(!n)return;
+    var A=ANIM;if(A.k>n-1){A.k=n-1;A.sub=4}
+    var done=A.done;
+    $("terms").style.display=done?"":"none";$("dSum").style.display=done?"":"none";$("dWhy").style.display=done?"":"none";
+    $("animStage").style.display=done?"none":"";
+    var cnt=done?n:A.k+(A.sub>=4?1:0);
+    var s="";
+    for(var i=0;i<n;i++){var cl=(i<cnt?"done":"")+(!done&&i===A.k?" cur":"");s+='<span class="'+cl+'">'+mini(DC[i].cells,cur.sk)+'</span>'}
+    $("animStrip").innerHTML=s;
+    if(!done){
+      var j=-1,html=DC[A.k].html.replace('<div class="term ','<div class="term stage'+(A.sub===0&&A.playing?' enter':'')+' ');
+      html=html.replace(/<div class="st">/g,function(){j++;return '<div class="st'+(j<A.sub?(j===A.sub-1&&A.playing?' pop':''):' off')+'">'});
+      html=html.replace('<span class="tag">','<span class="tag'+(A.sub>=4?(A.playing?' pop':''):' off')+'">');
+      $("animStage").innerHTML='<div class="stagehead">'+(A.k+1)+'번째 그림 / '+n+'개</div>'+html;
+    }
+    var t;
+    if(cnt===0)t='그림 1번부터 차례로 (가중합 − 정답)<sup>2</sup>을 구해 하나씩 더합니다.';
+    else{
+      var parts=[];for(var q=0;q<cnt;q++)parts.push('<span class="tm'+(q===cnt-1&&!done&&A.playing?' newterm':'')+'">'+DC[q].fin+'</span>');
+      t='<span class="acclb">지금까지 더한 값 ('+cnt+'개 / '+n+'개)</span>'+parts.join(' + ');
+      if(cnt===n)t+='<span class="acclb">'+n+'개를 모두 더한 뒤 '+n+([0,3,6].indexOf(n%10)>=0?'으로':'로')+' 나누면'+(cfg.single?'':' (다른 노드의 값도 더해서)')+' ③의 손실함수가 됩니다.</span>';
+    }
+    $("accText").innerHTML=t;
+    $("animStep").textContent=done?"모두 계산했습니다":(A.k+1)+"번째 그림 계산 중";
+    $("animPlay").textContent=A.playing?"일시 정지":(done?"처음부터 다시 보기":(A.k===0&&A.sub===0?"차례로 보기":"이어서 보기"));
+    ACC_CNT=cnt;drawAcc();
+  }
+  function drawAcc(){
+    var cv=$("accChart");if(!cv||!foldOpen())return;
+    var s=setup(cv),g=s.g,W=s.W,H=s.H,ml=36,mr=10,mt=12,mb=22,n=DC.length,cnt=ACC_CNT;
+    if(!W||!H)return;
+    var ymax=1;for(var q=0;q<=60;q++){var tw=WMIN+q/60*(WMAX-WMIN);ymax=Math.max(ymax,accSum(n,tw))}ymax*=1.08;
+    var X=function(t){return ml+(t-WMIN)/(WMAX-WMIN)*(W-ml-mr)},Y=function(v){return mt+(1-v/ymax)*(H-mt-mb)};
+    g.fillStyle=css("--sub");g.strokeStyle=css("--line");g.lineWidth=1;g.textAlign="center";
+    for(var i=-3;i<=3;i++){var t=i*0.4;g.beginPath();g.moveTo(X(t),mt);g.lineTo(X(t),H-mb);g.stroke();g.fillText(t.toFixed(1).replace("-","−"),X(t),H-mb+14)}
+    g.textAlign="right";for(var jj=0;jj<=3;jj++){var v=jj*ymax/3;g.beginPath();g.moveTo(ml,Y(v));g.lineTo(W-mr,Y(v));g.stroke();g.fillText(v.toFixed(1),ml-5,Y(v)+4)}
+    var line=function(c,col,wd,dash){g.save();g.beginPath();g.rect(ml,mt,W-ml-mr,H-mt-mb);g.clip();g.strokeStyle=col;g.lineWidth=wd;g.setLineDash(dash||[]);g.beginPath();
+      for(var q=0;q<=120;q++){var tt=WMIN+q/120*(WMAX-WMIN),yy=Y(accSum(c,tt));if(q)g.lineTo(X(tt),yy);else g.moveTo(X(tt),yy)}g.stroke();g.restore()};
+    if(cnt>1)line(cnt-1,css("--sub"),1.5,[4,4]);
+    if(cnt>0)line(cnt,css("--sel")||css("--accent"),2.5);
+    g.textAlign="left";g.fillStyle=css("--sub");g.fillText("지금까지 더한 값의 그래프",ml+6,mt+12);
+  }
+  function animTick(){
+    var A=ANIM,n=DC.length;if(!A.playing)return;
+    if(A.sub<4){A.sub++;renderAnim();A.t=setTimeout(animTick,A.sub<4?480:800)}
+    else if(A.k<n-1){A.k++;A.sub=0;renderAnim();A.t=setTimeout(animTick,450)}
+    else{A.done=true;A.playing=false;A.t=null;renderAnim()}
+  }
+  function startAnim(){
+    animStop();ANIM.k=0;ANIM.sub=0;ANIM.done=false;
+    if(RM){ANIM.done=true;renderAnim();return}
+    ANIM.playing=true;renderAnim();ANIM.t=setTimeout(animTick,450);
+  }
+
 
   var padEl=$("pad"),i,b;
   for(i=0;i<15;i++){
@@ -932,8 +1022,13 @@
     renderSamples();renderMap();renderStats();renderTrack();renderPad();drawHist();
     var c=coef(cur.so,cur.sk),v=cur.W[cur.so][cur.sk];$("vW").textContent=fmt(v,3);$("vD").textContent=fmt(2*c.A*v+c.B,3);drawChart(c);
   });
-  function redraw(){drawChart(coef(cur.so,cur.sk));drawHist()}
+  function redraw(){drawChart(coef(cur.so,cur.sk));drawHist();drawAcc()}
   window.addEventListener("resize",redraw);
+  document.querySelector(".fold").addEventListener("toggle",function(){if(this.open)startAnim();else animStop()});
+  $("animPlay").addEventListener("click",function(){var A=ANIM;if(A.playing){animStop();renderAnim()}else if(A.done)startAnim();else{A.playing=true;renderAnim();A.t=setTimeout(animTick,300)}});
+  $("animPrev").addEventListener("click",function(){var A=ANIM;animStop();if(A.done){A.done=false;A.k=DC.length-1;A.sub=4}else if(A.k>0){A.k--;A.sub=4}else A.sub=0;renderAnim()});
+  $("animNext").addEventListener("click",function(){var A=ANIM;animStop();if(A.done)return;if(A.sub<4)A.sub=4;else if(A.k<DC.length-1)A.k++;else A.done=true;renderAnim()});
+  $("animAll").addEventListener("click",function(){animStop();ANIM.done=true;renderAnim()});
   try{
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",redraw);
     new MutationObserver(redraw).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
