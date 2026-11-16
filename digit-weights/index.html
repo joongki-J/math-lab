@@ -368,7 +368,7 @@
   .strip span.done{opacity:1}
   .strip span.cur{opacity:1;border-color:#2b4acb}
   .stagewrap{display:grid;gap:12px;grid-template-columns:minmax(0,1fr);align-items:start}
-  @media (min-width:640px){.stagewrap{grid-template-columns:minmax(190px,250px) minmax(0,1fr)}}
+  
   .stagehead{font-size:12px;font-weight:700;color:#2b4acb;margin-bottom:4px}
   .term.stage{max-width:300px}
   .term .st.off,.term .tag.off{visibility:hidden}
@@ -382,6 +382,24 @@
   .pop,.newterm{animation:stIn .5s ease}
   .term.enter{animation:cardIn .4s ease}
   @media (prefers-reduced-motion:reduce){.pop,.newterm,.term.enter{animation:none}}
+
+  .calcbox{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start}
+  .cgrid{display:grid;grid-template-columns:repeat(3,52px);gap:3px;background:var(--pix-grid);padding:3px;border-radius:8px;flex:0 0 auto}
+  .cc{height:46px;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:13.5px;line-height:1.15;font-variant-numeric:tabular-nums;font-family:var(--font-math)}
+  .cc.on{background:var(--pix-on);color:#0e1116}
+  .cc.off{background:var(--pix-off);color:#c7ccd6}
+  .cc small{font-size:9.5px;opacity:.75}
+  .cc.off.proc span{opacity:.55}
+  .cc.on.proc{background:#fff1dc}
+  .cc.csel{outline:3px solid var(--pix-hl);outline-offset:-3px}
+  .cc.ccur{box-shadow:0 0 0 3px #f2a04a;position:relative;z-index:1}
+  .clines{display:grid;gap:9px;flex:1 1 200px;min-width:0}
+  .cl{font-size:13.5px;line-height:1.6}
+  .cl .lb{display:block;font-size:11.5px;color:var(--sub);font-family:var(--font-body)}
+  .cl .m{white-space:normal;font-size:15px}
+  .cnow{color:var(--eight);font-weight:600}
+  .spd{font-size:12.5px;color:var(--sub);display:flex;align-items:center;gap:4px}
+  .cfin{color:var(--sel)}
 </style>
 </head>
 <body>
@@ -467,7 +485,7 @@
           <summary><span id="dTitle"></span> 펼쳐 보기</summary>
           <div class="foldin">
             <p class="hint" id="dIntro"></p>
-            <div class="animbar"><button class="btn primary" id="animPlay" type="button">차례로 보기</button><button class="btn" id="animPrev" type="button">◀ 이전</button><button class="btn" id="animNext" type="button">다음 ▶</button><button class="btn" id="animAll" type="button">모두 보기</button><span id="animStep" class="tnumx"></span></div>
+            <div class="animbar"><button class="btn primary" id="animPlay" type="button">차례로 보기</button><button class="btn" id="animPrev" type="button">◀ 이전 그림</button><button class="btn" id="animNext" type="button">다음 단계 ▶</button><button class="btn" id="animAll" type="button">모두 보기</button><label class="spd" for="animSpeed">속도 <select id="animSpeed"><option value="1.7">느리게</option><option value="1" selected>보통</option><option value="0.5">빠르게</option></select></label><span id="animStep" class="tnumx"></span></div>
             <div class="strip" id="animStrip" aria-label="그림 8장의 계산 진행"></div>
             <div class="stagewrap"><div id="animStage"></div><div class="accum"><div class="fx tnum" id="accText"></div><div class="chart-wrap c-small"><canvas id="accChart" role="img" aria-label="지금까지 더한 값의 그래프"></canvas></div></div></div>
             <div class="terms" id="terms"></div>
@@ -784,7 +802,7 @@
         '<div class="st"><span class="lb">③ 정답</span><span class="m">'+String(t0).replace("-","−")+'</span> <span>(숫자 '+d.c+' 그림)</span></div>'+
         '<div class="st"><span class="lb">④ ('+pv+' − 정답)<sup>2</sup></span><span class="m">'+raw+'</span><div class="fx tnum">= '+fin+'</div></div>'+
         '<span class="tag">'+(p?'<span class="m">'+W+'</span>에 대한 이차식':'<span class="m">'+W+'</span>'+jo('이','가')+' 없는 상수')+'</span></div>';
-      DC.push({html:ch,fin:fin,p:p,c:c,cells:d.cells});h+=ch;
+      DC.push({html:ch,fin:fin,p:p,c:c,cells:d.cells,t0:t0,ts:ts,rest:rest,z:z,rs:rs,dc:d.c});h+=ch;
     });
     $("terms").innerHTML=h;
     renderAnim();
@@ -922,30 +940,60 @@
   function fromHash(){var m=/^#(?:ch|chapter-)([123])$/.exec(location.hash||"");return m?+m[1]-1:0}
   function selectW(o,k){cur.so=o;cur.sk=k;say("msg2","");renderSamples();renderMap();renderSel();if(foldOpen())startAnim()}
   // ===== 식이 만들어지는 과정 애니메이션 =====
-  var DC=[],ANIM={k:0,sub:4,done:true,playing:false,t:null},ACC_CNT=0;
+  var DC=[],ANIM={k:0,sub:0,done:true,playing:false,t:null},ACC_CNT=0,SPEED=1;
   var RM=false;try{RM=window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){}
   function foldOpen(){var f=document.querySelector(".fold");return !!(f&&f.open)}
   function termVal(t,w){return t.p?(w+t.c)*(w+t.c):t.c*t.c}
   function accSum(cnt,w){var s=0;for(var i=0;i<cnt;i++)s+=termVal(DC[i],w);return s}
   function animStop(){if(ANIM.t){clearTimeout(ANIM.t);ANIM.t=null}ANIM.playing=false}
+  function whites(i){var r=[];DC[i].cells.forEach(function(v,j){if(v)r.push(j)});return r}
+  // 단계: 0 칸의 값, 1 검은 칸 처리, 2..m+1 흰 칸 하나씩, m+2 가중합, m+3 정답, m+4 (가중합 − 정답)²
+  function lastSub(i){return whites(i).length+4}
+  function stepDelay(i,sub){
+    var m=whites(i).length,t;
+    if(sub<=1)t=1500;else if(sub<=m+1)t=(whites(i)[sub-2]===cur.sk?1600:800);else if(sub===m+2)t=1600;else if(sub===m+3)t=1300;else t=2300;
+    return t*SPEED;
+  }
+  function stageHtml(i,sub,live){
+    var d=DC[i],k=cur.sk,w=cur.W[cur.so],Ws=wSym(),wh=whites(i),m=wh.length;
+    var doneW=Math.max(0,Math.min(m,sub-1)),curCell=(sub>=2&&sub<=m+1)?wh[sub-2]:-1;
+    var res=d.p?(d.z?Ws:Ws+' + '+d.rs):(d.z?'0':fmt(d.rest,2));
+    var g='<div class="cgrid">';
+    for(var j=0;j<15;j++){
+      var p=d.cells[j],qi=wh.indexOf(j),proc=p?(qi>=0&&qi<doneW):sub>=1;
+      var cls='cc '+(p?'on':'off')+(j===k?' csel':'')+(j===curCell?' ccur':'')+(proc?' proc':'')+(live&&(j===curCell||(sub===1&&!p))?' pop':'');
+      var txt=proc?(p?(j===k?Ws:fmt(w[j],2)):'0'):String(p);
+      g+='<div class="'+cls+'">'+(proc?'<small>×<i>w</i><sub>'+(j+1)+'</sub></small>':'')+'<span>'+txt+'</span></div>';
+    }
+    g+='</div>';
+    var L=[];
+    L.push('<div class="cl'+(live&&sub===0?' pop':'')+'"><span class="lb">① 칸의 값</span>흰 칸은 1, 검은 칸은 0입니다.</div>');
+    if(sub>=1)L.push('<div class="cl'+(live&&sub===1?' pop':'')+'"><span class="lb">② 가중합 구하기: 칸의 값 × 가중치</span>검은 칸은 값이 0이라 가중치를 곱해도 0입니다. 흰 칸만 하나씩 곱합니다.</div>');
+    if(curCell>=0){
+      var wk=curCell===k?Ws:'<i>w</i><sub>'+(curCell+1)+'</sub>',pv=curCell===k?Ws:fmt(w[curCell],2),pvp=curCell===k?Ws:(w[curCell]<-0.005?'('+pv+')':pv);
+      L.push('<div class="cl cnow'+(live?' pop':'')+'"><span class="m"><i>p</i><sub>'+(curCell+1)+'</sub> × '+wk+' = 1 × '+pvp+' = '+pv+'</span>'+(curCell===k?'<span class="lb">파란 테두리 칸의 가중치는 문자로 남겨 둡니다.</span>':'')+'</div>');
+    }
+    if(sub>=2){
+      var terms=[];for(var q=0;q<doneW;q++){var j2=wh[q],tv=j2===k?Ws:fmt(w[j2],2),neg=j2!==k&&w[j2]<-0.005;terms.push(q===0?tv:(neg?' − '+tv.replace('−',''):' + '+tv))}
+      L.push('<div class="cl'+(live&&sub===m+2?' pop':'')+'"><span class="lb">가중합 = 흰 칸의 (칸의 값 × 가중치)를 모두 더한 값</span><span class="m">'+terms.join('')+(sub>=m+2?' = <b>'+res+'</b>':'')+'</span></div>');
+    }
+    if(sub>=m+3)L.push('<div class="cl'+(live&&sub===m+3?' pop':'')+'"><span class="lb">③ 정답</span><span class="m">'+String(d.t0).replace("-","−")+'</span> (숫자 '+d.dc+' 그림)</div>');
+    if(sub>=m+4)L.push('<div class="cl'+(live&&sub===m+4?' pop':'')+'"><span class="lb">④ (가중합 − 정답)<sup>2</sup></span><span class="m">('+res+' − '+d.ts+')<sup>2</sup> = </span><b class="m cfin">'+d.fin+'</b></div>');
+    return '<div class="stagehead">'+(i+1)+'번째 그림 / '+DC.length+'개</div><div class="calcbox">'+g+'<div class="clines">'+L.join('')+'</div></div>';
+  }
   function renderAnim(){
     var n=DC.length;if(!n)return;
-    var A=ANIM;if(A.k>n-1){A.k=n-1;A.sub=4}
+    var A=ANIM;if(A.k>n-1){A.k=n-1;A.sub=0}
     var done=A.done;
     $("terms").style.display=done?"":"none";$("dSum").style.display=done?"":"none";$("dWhy").style.display=done?"":"none";
     $("animStage").style.display=done?"none":"";
-    var cnt=done?n:A.k+(A.sub>=4?1:0);
+    var cnt=done?n:A.k+(A.sub>=lastSub(A.k)?1:0);
     var s="";
     for(var i=0;i<n;i++){var cl=(i<cnt?"done":"")+(!done&&i===A.k?" cur":"");s+='<span class="'+cl+'">'+mini(DC[i].cells,cur.sk)+'</span>'}
     $("animStrip").innerHTML=s;
-    if(!done){
-      var j=-1,html=DC[A.k].html.replace('<div class="term ','<div class="term stage'+(A.sub===0&&A.playing?' enter':'')+' ');
-      html=html.replace(/<div class="st">/g,function(){j++;return '<div class="st'+(j<A.sub?(j===A.sub-1&&A.playing?' pop':''):' off')+'">'});
-      html=html.replace('<span class="tag">','<span class="tag'+(A.sub>=4?(A.playing?' pop':''):' off')+'">');
-      $("animStage").innerHTML='<div class="stagehead">'+(A.k+1)+'번째 그림 / '+n+'개</div>'+html;
-    }
+    if(!done)$("animStage").innerHTML=stageHtml(A.k,A.sub,A.playing);
     var t;
-    if(cnt===0)t='그림 1번부터 차례로 (가중합 − 정답)<sup>2</sup>을 구해 하나씩 더합니다.';
+    if(cnt===0)t='그림마다 (가중합 − 정답)<sup>2</sup>을 구해 하나씩 더합니다.';
     else{
       var parts=[];for(var q=0;q<cnt;q++)parts.push('<span class="tm'+(q===cnt-1&&!done&&A.playing?' newterm':'')+'">'+DC[q].fin+'</span>');
       t='<span class="acclb">지금까지 더한 값 ('+cnt+'개 / '+n+'개)</span>'+parts.join(' + ');
@@ -973,14 +1021,14 @@
   }
   function animTick(){
     var A=ANIM,n=DC.length;if(!A.playing)return;
-    if(A.sub<4){A.sub++;renderAnim();A.t=setTimeout(animTick,A.sub<4?480:800)}
-    else if(A.k<n-1){A.k++;A.sub=0;renderAnim();A.t=setTimeout(animTick,450)}
+    if(A.sub<lastSub(A.k)){A.sub++;renderAnim();A.t=setTimeout(animTick,stepDelay(A.k,A.sub))}
+    else if(A.k<n-1){A.k++;A.sub=0;renderAnim();A.t=setTimeout(animTick,stepDelay(A.k,0))}
     else{A.done=true;A.playing=false;A.t=null;renderAnim()}
   }
   function startAnim(){
     animStop();ANIM.k=0;ANIM.sub=0;ANIM.done=false;
     if(RM){ANIM.done=true;renderAnim();return}
-    ANIM.playing=true;renderAnim();ANIM.t=setTimeout(animTick,450);
+    ANIM.playing=true;renderAnim();ANIM.t=setTimeout(animTick,stepDelay(0,0));
   }
 
 
@@ -1025,10 +1073,11 @@
   function redraw(){drawChart(coef(cur.so,cur.sk));drawHist();drawAcc()}
   window.addEventListener("resize",redraw);
   document.querySelector(".fold").addEventListener("toggle",function(){if(this.open)startAnim();else animStop()});
-  $("animPlay").addEventListener("click",function(){var A=ANIM;if(A.playing){animStop();renderAnim()}else if(A.done)startAnim();else{A.playing=true;renderAnim();A.t=setTimeout(animTick,300)}});
-  $("animPrev").addEventListener("click",function(){var A=ANIM;animStop();if(A.done){A.done=false;A.k=DC.length-1;A.sub=4}else if(A.k>0){A.k--;A.sub=4}else A.sub=0;renderAnim()});
-  $("animNext").addEventListener("click",function(){var A=ANIM;animStop();if(A.done)return;if(A.sub<4)A.sub=4;else if(A.k<DC.length-1)A.k++;else A.done=true;renderAnim()});
+  $("animPlay").addEventListener("click",function(){var A=ANIM;if(A.playing){animStop();renderAnim()}else if(A.done)startAnim();else{A.playing=true;renderAnim();A.t=setTimeout(animTick,500)}});
+  $("animPrev").addEventListener("click",function(){var A=ANIM;animStop();if(A.done){A.done=false;A.k=DC.length-1;A.sub=0}else if(A.sub>0)A.sub=0;else if(A.k>0){A.k--;A.sub=0}renderAnim()});
+  $("animNext").addEventListener("click",function(){var A=ANIM;animStop();if(A.done)return;if(A.sub<lastSub(A.k))A.sub++;else if(A.k<DC.length-1){A.k++;A.sub=0}else A.done=true;renderAnim()});
   $("animAll").addEventListener("click",function(){animStop();ANIM.done=true;renderAnim()});
+  $("animSpeed").addEventListener("change",function(){SPEED=parseFloat(this.value)||1});
   try{
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",redraw);
     new MutationObserver(redraw).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
