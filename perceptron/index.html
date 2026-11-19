@@ -681,17 +681,26 @@ td.empty{color:var(--rule)}
   function clampW(v){return r2(Math.max(-9.9,Math.min(9.9,v)));}
 
   // ---------- 공통: 애니메이션 ----------
+  // eng.paused 동안에는 시간이 흐르지 않는다 (멈춤 → 계속)
   function sleep(ms,eng,id){
-    return new Promise(function(res,rej){setTimeout(function(){id===eng.runId?res():rej(CANCEL);},ms);});
+    return new Promise(function(res,rej){
+      var left=ms, last=performance.now();
+      function tick(){
+        if(id!==eng.runId){rej(CANCEL);return;}
+        var now=performance.now(); if(!eng.paused) left-=now-last; last=now;
+        left<=0?res():setTimeout(tick,Math.min(left,40));
+      }
+      setTimeout(tick,Math.min(ms,40));
+    });
   }
   function tween(ms,eng,id,fn){
     if(reduce){fn(1);return Promise.resolve();}
     return new Promise(function(res,rej){
-      var t0=null;
+      var el=0, last=null;
       function frame(t){
         if(id!==eng.runId){rej(CANCEL);return;}
-        if(t0===null)t0=t;
-        var k=Math.min(1,(t-t0)/ms); fn(k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2);
+        if(last!==null&&!eng.paused) el+=t-last; last=t;
+        var k=Math.min(1,el/ms); fn(k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2);
         k<1?requestAnimationFrame(frame):res();
       }
       requestAnimationFrame(frame);
@@ -898,10 +907,6 @@ td.empty{color:var(--rule)}
     h+='<text class="slab" x="209" y="162">y = <tspan class="m">f</tspan>(<tspan class="m">z</tspan>)</text>';
     h+='<text class="slab" x="'+ZX0+'" y="210" text-anchor="middle">0</text><text class="slab" x="'+(ZX0-6)+'" y="'+(SY1+3.5)+'" text-anchor="end">1</text>';
     h+='<text class="slab m" x="356" y="209" text-anchor="end" font-size="12">z</text>';
-    results.forEach(function(r,i){
-      if(!r||(zShow&&zShow.i===i)) return;
-      h+='<circle class="sdot '+(r.y?"on":"off")+'" cx="'+zx(r.z)+'" cy="'+(r.y?SY1:SY0)+'" r="3.8"/>';
-    });
     if(zShow){
       var z=zShow.z, up=zShow.stage==="graph", y=step01(z), cy=(up&&y)?SY1:SY0, x=zx(z);
       h+='<circle id="'+pre+'CurDot" class="sdot '+(up?(y?"on":"off"):"cur")+'" cx="'+x+'" cy="'+cy+'" r="5.2"/>';
@@ -955,6 +960,11 @@ td.empty{color:var(--rule)}
     $("aTblTitle").textContent="③ "+g.name+" 결과표";
     return done;
   }
+  function runBtn(bid,eng){ // 실행 중에는 같은 버튼이 멈춤/계속 버튼이 된다
+    var b=$(bid); b.textContent=!eng.running?"▶ 네 입력 실행":(eng.paused?"▶ 계속":"❚❚ 멈춤");
+    b.setAttribute("aria-pressed",eng.running&&eng.paused?"true":"false");
+  }
+  function togglePause(eng){ eng.paused=!eng.paused; }
   function cap(id,h){$(id).innerHTML="<span>"+h+"</span>";}
   function aIdle(){cap("aCaption",V("w","1")+', '+V("w","2")+', '+V("b")+'의 값을 정하고 실행을 눌러 보세요.');}
   async function aPlay(i,id){
@@ -997,23 +1007,23 @@ td.empty{color:var(--rule)}
     await sleep(900,A,id);
   }
   async function aRun(list){
-    var id=++A.runId; A.running=true; aButtons();
+    var id=++A.runId; A.running=true; A.paused=false; aButtons();
     try{
       for(var k=0;k<list.length;k++) await aPlay(list[k],id);
       A.cur=-1; A.zShow=null; resetNet("a"); aRenderStep(); var done=aRenderTable(); aRenderPlane();
       cap("aCaption",done?$("aVerdict").textContent:'다음 입력을 이어서 실행해 보세요.');
     }catch(e){ if(e!==CANCEL) throw e; }
-    finally{ if(id===A.runId){A.running=false; aButtons();} }
+    finally{ if(id===A.runId){A.running=false; A.paused=false; aButtons();} }
   }
-  function aButtons(){$("aRun").disabled=A.running; $("aStep").disabled=A.running;}
+  function aButtons(){runBtn("aRun",A); $("aStep").disabled=A.running;}
   function aClear(){
-    A.runId++; A.running=false; A.cur=-1; A.zShow=null; A.results=[null,null,null,null];
+    A.runId++; A.running=false; A.paused=false; A.cur=-1; A.zShow=null; A.results=[null,null,null,null];
     sync("a",A.p); resetNet("a"); aRenderStep(); aRenderTable(); aRenderPlane(); aRenderEq(); aIdle(); aButtons();
   }
   bindSteppers($("aNet"),function(k){return A.p[k];},function(k,v){ if(isFinite(v)) A.p[k]=clampW(v); aClear(); },function(){return A.unit;});
   document.querySelectorAll('input[name="gate"]').forEach(function(r){r.addEventListener("change",function(){A.gate=r.value; aClear();});});
   document.querySelectorAll('input[name="unit"]').forEach(function(r){r.addEventListener("change",function(){A.unit=Number(r.value);});});
-  $("aRun").addEventListener("click",function(){A.results=[null,null,null,null]; aRun([0,1,2,3]);});
+  $("aRun").addEventListener("click",function(){ if(A.running){togglePause(A); aButtons(); return;} A.results=[null,null,null,null]; aRun([0,1,2,3]);});
   $("aStep").addEventListener("click",function(){
     var i=A.results.findIndex(function(r){return !r;});
     if(i<0){A.results=[null,null,null,null]; i=0;}
@@ -1215,10 +1225,6 @@ td.empty{color:var(--rule)}
       h+='<circle cx="'+cx+'" cy="'+Y0+'" r="3" fill="var(--card)" stroke="var(--off)" stroke-width="1.5"/><circle cx="'+cx+'" cy="'+Y1+'" r="3.2" fill="var(--on)"/>';
       h+='<text class="stitle '+d[1]+'" x="'+x0+'" y="12"><tspan class="m">'+d[2]+'</tspan>'+(d[3]?'<tspan dy="3" font-size="8">'+d[3]+'</tspan><tspan dy="-3"> </tspan>':' ')+'= <tspan class="m">f</tspan>(<tspan class="m">z</tspan>)</text>';
       h+='<text class="slab" x="'+cx+'" y="63" text-anchor="middle">0</text><text class="slab" x="'+(cx-6)+'" y="'+(Y1+3.5)+'" text-anchor="end">1</text>';
-      M.results.forEach(function(r,i){
-        if(!r||(M.zShow&&M.zShow.i===i)) return;
-        h+='<circle class="sdot '+(r[d[5]]?"on":"off")+'" cx="'+zx(r[d[4]])+'" cy="'+(r[d[5]]?Y1:Y0)+'" r="3.6"/>';
-      });
       if(M.zShow&&(j<2||M.zShow.stage===2)){
         var z=M.zShow.f[d[4]], v=M.zShow.f[d[5]], x=zx(z), cy=v?Y1:Y0;
         h+='<circle class="sdot '+(v?"on":"off")+'" cx="'+x+'" cy="'+cy+'" r="5"/>';
@@ -1300,17 +1306,17 @@ td.empty{color:var(--rule)}
     await sleep(850,M,id);
   }
   async function mRun(list){
-    var id=++M.runId; M.running=true; mButtons();
+    var id=++M.runId; M.running=true; M.paused=false; mButtons();
     try{
       for(var k=0;k<list.length;k++) await mPlay(list[k],id);
       M.cur=-1; M.zShow=null; mResetNet(); mRenderSteps(); var done=mRenderTable(); mRenderPlanes();
       cap("mCaption",done?$("mVerdict").textContent:'다음 입력을 이어서 실행해 보세요.');
     }catch(e){ if(e!==CANCEL) throw e; }
-    finally{ if(id===M.runId){M.running=false; mButtons();} }
+    finally{ if(id===M.runId){M.running=false; M.paused=false; mButtons();} }
   }
-  function mButtons(){$("mRun").disabled=M.running; $("mStep").disabled=M.running;}
+  function mButtons(){runBtn("mRun",M); $("mStep").disabled=M.running;}
   function mClear(){
-    M.runId++; M.running=false; M.cur=-1; M.results=[null,null,null,null]; M.zShow=null;
+    M.runId++; M.running=false; M.paused=false; M.cur=-1; M.results=[null,null,null,null]; M.zShow=null;
     mResetNet(); mRenderSteps(); mRenderNetLabels(); mRenderEditor(); mRenderTable(); mRenderPlanes(); mIdle(); mButtons();
   }
   function mSelect(k){
@@ -1328,7 +1334,7 @@ td.empty{color:var(--rule)}
     el.addEventListener("keydown",function(e){if(e.key==="Enter")el.blur();});
     el.addEventListener("focus",function(){el.select();});
   });
-  $("mRun").addEventListener("click",function(){M.results=[null,null,null,null]; mRun([0,1,2,3]);});
+  $("mRun").addEventListener("click",function(){ if(M.running){togglePause(M); mButtons(); return;} M.results=[null,null,null,null]; mRun([0,1,2,3]);});
   $("mStep").addEventListener("click",function(){
     var i=M.results.findIndex(function(r){return !r;});
     if(i<0){M.results=[null,null,null,null]; i=0;}
@@ -1353,12 +1359,12 @@ td.empty{color:var(--rule)}
     $("lab").hidden=!single; $("learn").hidden=ch!==2; $("mlp").hidden=!(ch===3&&NAV.xmode==="mlp");
     // 진행 중인 실행은 모두 멈춘다
     L.runId++; L.running=false; L.auto=false; lButtons();
-    M.runId++; M.running=false; mButtons();
+    M.runId++; M.running=false; M.paused=false; mButtons();
     if(single){
       A.ctx=ch===1?"ch1":"xor"; A.p=A.store[A.ctx];
       A.gate=ch===1?(document.querySelector('input[name="gate"]:checked').value):"xor";
       aClear();
-    }else{ A.runId++; A.running=false; }
+    }else{ A.runId++; A.running=false; A.paused=false; aButtons(); }
     if(ch===3&&NAV.xmode==="mlp") mClear();
     if(ch===2){ if(L.cur>=0&&!L.done){L.cur=-1; lRenderPlane();} }
   }
