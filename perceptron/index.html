@@ -290,6 +290,7 @@ sub{font-style:normal;font-size:.72em;line-height:0}
 .nlabel{fill:var(--muted);font-size:10.5px;text-anchor:middle;font-family:var(--body)}
 .wlab{font:600 11px var(--body);text-anchor:middle;paint-order:stroke;stroke:var(--card);stroke-width:3px;stroke-linejoin:round;font-variant-numeric:tabular-nums}
 .wlab.ka{fill:var(--ha)}.wlab.kb{fill:var(--hb)}.wlab.kr{fill:var(--on)}
+.wlab{transition:font-size .2s}.wlab.hit{font-size:14px;stroke:color-mix(in srgb,var(--signal) 22%,var(--card));stroke-width:7px}
 .glyph{fill:none;stroke:var(--ink);stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
 .pulse{fill:var(--signal);opacity:0;filter:drop-shadow(0 0 3px var(--signal))}
 .trail{stroke:var(--signal);stroke-width:3;stroke-linecap:round;opacity:0;transition:opacity .25s}
@@ -886,6 +887,19 @@ td.empty{color:var(--rule)}
       el.addEventListener("focus",function(){el.select();});
     });
   }
+  // 입력·편향 → 가중치 조절기 → 가중합 (k: 속도 배율)
+  async function flowIn(pre,eng,id,k){
+    var SRC=[[30,36],[30,110],[30,184]], WX=122, ctls=$(pre+"Net").querySelectorAll(".wctl");
+    var WY=SRC.map(function(q){return q[1]+(110-q[1])*(WX-30)/206;});
+    await Promise.all(SRC.map(function(q,j){return flow($(pre+"p"+(j+1)),$(pre+"f"+(j+1)),q[0],q[1],WX,WY[j],450*k,eng,id);}));
+    ctls.forEach(function(el){el.classList.add("hit");});
+    try{ await sleep(320*k,eng,id); }
+    finally{ ctls.forEach(function(el){el.classList.remove("hit");}); }
+    await Promise.all(SRC.map(function(q,j){return flow($(pre+"p"+(j+1)),$(pre+"f"+(j+1)),WX,WY[j],236,110,450*k,eng,id,q[0],q[1]);}));
+  }
+  // 가중합 → 활성화 함수 상자, 활성화 함수 → 출력
+  function flowAct(pre,eng,id,k){return flow($(pre+"p4"),$(pre+"f4"),236,110,296,110,320*k,eng,id);}
+  function flowOut(pre,eng,id,k){return flow($(pre+"p4"),$(pre+"f5"),296,110,342,110,280*k,eng,id);}
   function sync(pre,p){["w1","w2","b"].forEach(function(k){$(pre+k).value=String(r2(p[k]));});}
 
   /* =====================================================
@@ -976,27 +990,20 @@ td.empty{color:var(--rule)}
     await sleep(700,A,id);
     var expr=Z+' = '+par(p.w1)+'×'+a+' + '+par(p.w2)+'×'+b+' + '+par(p.b);
     cap("aCaption",expr);
-    // 입력·편향 → 가중치 조절기 → 가중합
-    var SRC=[[30,36],[30,110],[30,184]], WX=122, ctls=$("aNet").querySelectorAll(".wctl");
-    var WY=SRC.map(function(q){return q[1]+(110-q[1])*(WX-30)/206;});
-    await Promise.all(SRC.map(function(q,j){return flow($("ap"+(j+1)),$("af"+(j+1)),q[0],q[1],WX,WY[j],450,A,id);}));
-    ctls.forEach(function(el){el.classList.add("hit");});
-    await sleep(320,A,id);
-    await Promise.all(SRC.map(function(q,j){return flow($("ap"+(j+1)),$("af"+(j+1)),WX,WY[j],236,110,450,A,id,q[0],q[1]);}));
-    ctls.forEach(function(el){el.classList.remove("hit");});
+    await flowIn("a",A,id,1);
     var z=zOf(p,a,b), y=step01(z);
     showSum("a",z);
     cap("aCaption",expr+' = <b>'+num(z)+'</b>');
     A.zShow={i:i,z:z,stage:"axis"}; aRenderStep(); aRenderPlane();
     await sleep(1100,A,id);
-    await flow($("ap4"),$("af4"),236,110,296,110,320,A,id);
+    await flowAct("a",A,id,1);
     $("anAct").classList.add("lit");
     if(y){
       var cd=$("aCurDot"), cl=$("aCurLab");
       await tween(380,A,id,function(k){var cy=SY0+(SY1-SY0)*k; cd.setAttribute("cy",cy); cl.setAttribute("y",cy-9);});
     }
     A.zShow.stage="graph"; aRenderStep();
-    await flow($("ap4"),$("af5"),296,110,342,110,280,A,id);
+    await flowOut("a",A,id,1);
     showOut("a",y);
     cap("aCaption",Z+' = '+num(z)+(y?' ≥ 0':' &lt; 0')+' 이므로 '+V("f")+'('+Z+') = <b>'+y+'</b>');
     await sleep(1000,A,id);
@@ -1120,10 +1127,14 @@ td.empty{color:var(--rule)}
     var lines=['<div class="hd">'+L.epoch+'바퀴 · 입력 ('+a+', '+b+') · 목표 '+V("t")+' = '+t+'</div>'];
     lines.push('<div>'+Z+' = '+par(p.w1)+'×'+a+' + '+par(p.w2)+'×'+b+' + '+par(p.b)+' = <b>'+num(s.z)+'</b> → '+V("y")+' = <b>'+s.y+'</b></div>');
     $("lCalc").innerHTML=lines.join("");
-    await sleep(350*k,L,id);
+    await sleep(250*k,L,id);
+    await flowIn("l",L,id,k);
     showSum("l",s.z); $("lStepG").innerHTML=stepGraph("l",[],{i:-1,z:s.z,stage:"axis"});
     await sleep(300*k,L,id);
-    $("lnAct").classList.add("lit"); $("lStepG").innerHTML=stepGraph("l",[],{i:-1,z:s.z,stage:"graph"}); showOut("l",s.y);
+    await flowAct("l",L,id,k);
+    $("lnAct").classList.add("lit"); $("lStepG").innerHTML=stepGraph("l",[],{i:-1,z:s.z,stage:"graph"});
+    await flowOut("l",L,id,k);
+    showOut("l",s.y);
     await sleep(350*k,L,id);
     $("lnT").classList.add("lit"); $("ltE").textContent="t − y = "+num(s.e);
     lines.push('<div>오차 '+V("t")+' − '+V("y")+' = '+t+' − '+s.y+' = <b class="'+(s.e?"ng":"ok")+'">'+num(s.e)+'</b>'+(s.e?'':' → 고치지 않음')+'</div>');
@@ -1205,6 +1216,7 @@ td.empty{color:var(--rule)}
     $("mtH1").innerHTML=tsub("h","1"); $("mtH2").innerHTML=tsub("h","2"); $("mtO").innerHTML='<tspan class="m">y</tspan>';
     ["mtH1","mtH2","mtO"].forEach(function(id){$(id).classList.remove("inv");});
     for(var i=1;i<=6;i++){$("mp"+i).style.opacity=0; $("mf"+i).style.opacity=0;}
+    document.querySelectorAll("#mSvg .wlab.hit").forEach(function(el){el.classList.remove("hit");});
   }
   function mSetNode(nid,tid,v){$(nid).classList.remove("on","off"); $(nid).classList.add(v?"on":"off"); $(tid).innerHTML=String(v); $(tid).classList.add("inv");}
   function mRenderEditor(){
@@ -1236,7 +1248,7 @@ td.empty{color:var(--rule)}
   function mRenderPlanes(){
     var g=GATES.xor;
     $("mPlaneX").innerHTML=planeSVG({
-      lines:[{p:M.n.h1,cls:"ka",label:"h₁",labelAt:30,strip:0.13},{p:M.n.h2,cls:"kb",label:"h₂",labelAt:30,strip:0.13}],
+      lines:[{p:M.n.h1,cls:"ka",label:"h₁",labelAt:30,strip:0.35},{p:M.n.h2,cls:"kb",label:"h₂",labelAt:30,strip:0.35}],
       pts:CASES.map(function(c,i){
         var r=M.results[i];
         return {x:c[0],y:c[1],t:g.f(c[0],c[1]),out:r?r.y:null,cur:i===M.cur,
@@ -1281,6 +1293,16 @@ td.empty{color:var(--rule)}
     return done;
   }
   function mIdle(){cap("mCaption",'뉴런 세 개의 값을 정하고 실행을 눌러 보세요.');}
+  // 신호가 간선 가운데(가중치)까지 가서 가중치·편향 라벨을 빛낸 뒤 다음 뉴런으로 들어간다
+  async function mFlow(segs,labs,id){
+    var T=0.5, els=labs.map(function(k){return $("mw_"+k);});
+    function mid(g){return [g[1]+(g[3]-g[1])*T, g[2]+(g[4]-g[2])*T];}
+    await Promise.all(segs.map(function(g){var m=mid(g); return flow($("mp"+g[0]),$("mf"+g[0]),g[1],g[2],m[0],m[1],380,M,id);}));
+    els.forEach(function(el){el.classList.add("hit");});
+    try{ await sleep(320,M,id); }
+    finally{ els.forEach(function(el){el.classList.remove("hit");}); }
+    await Promise.all(segs.map(function(g){var m=mid(g); return flow($("mp"+g[0]),$("mf"+g[0]),m[0],m[1],g[3],g[4],380,M,id,g[1],g[2]);}));
+  }
   async function mPlay(i,id){
     var a=CASES[i][0], b=CASES[i][1], f=mForward(a,b), n=M.n;
     M.cur=i; M.zShow=null; mResetNet(); mRenderSteps(); mRenderTable(); mRenderPlanes();
@@ -1288,13 +1310,13 @@ td.empty{color:var(--rule)}
     $("mnX1").classList.add("lit"); $("mnX2").classList.add("lit");
     cap("mCaption",'입력 ('+X1+', '+X2+') = ('+a+', '+b+')');
     await sleep(650,M,id);
-    await Promise.all([flow($("mp1"),$("mf1"),36,52,176,52,700,M,id),flow($("mp2"),$("mf2"),36,52,176,144,700,M,id),flow($("mp3"),$("mf3"),36,144,176,52,700,M,id),flow($("mp4"),$("mf4"),36,144,176,144,700,M,id)]);
+    await mFlow([[1,36,52,176,52],[2,36,52,176,144],[3,36,144,176,52],[4,36,144,176,144]],["h1_w1","h2_w1","h1_w2","h2_w2","h1_b","h2_b"],id);
     mSetNode("mnH1","mtH1",f.h1); mSetNode("mnH2","mtH2",f.h2);
     M.zShow={i:i,f:f,stage:1}; mRenderSteps();
     cap("mCaption",H1+': '+par(n.h1.w1)+'×'+a+' + '+par(n.h1.w2)+'×'+b+' + '+par(n.h1.b)+' = '+num(f.z1)+' → <b>'+f.h1+'</b><br>'+
                    H2+': '+par(n.h2.w1)+'×'+a+' + '+par(n.h2.w2)+'×'+b+' + '+par(n.h2.b)+' = '+num(f.z2)+' → <b>'+f.h2+'</b>');
     await sleep(1300,M,id);
-    await Promise.all([flow($("mp5"),$("mf5"),176,52,312,98,600,M,id),flow($("mp6"),$("mf6"),176,144,312,98,600,M,id)]);
+    await mFlow([[5,176,52,312,98],[6,176,144,312,98]],["o_w1","o_w2","o_b"],id);
     mSetNode("mnO","mtO",f.y);
     M.zShow.stage=2; mRenderSteps();
     cap("mCaption",V("y")+': '+par(n.o.w1)+'×'+f.h1+' + '+par(n.o.w2)+'×'+f.h2+' + '+par(n.o.b)+' = '+num(f.zo)+' → <b>'+f.y+'</b>');
