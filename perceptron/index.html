@@ -291,7 +291,10 @@ sub{font-style:normal;font-size:.72em;line-height:0}
 .wlab{font:600 11px var(--body);text-anchor:middle;paint-order:stroke;stroke:var(--card);stroke-width:3px;stroke-linejoin:round;font-variant-numeric:tabular-nums}
 .wlab.ka{fill:var(--ha)}.wlab.kb{fill:var(--hb)}.wlab.kr{fill:var(--on)}
 .glyph{fill:none;stroke:var(--ink);stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
-.pulse{fill:var(--signal);opacity:0}
+.pulse{fill:var(--signal);opacity:0;filter:drop-shadow(0 0 3px var(--signal))}
+.trail{stroke:var(--signal);stroke-width:3;stroke-linecap:round;opacity:0;transition:opacity .25s}
+.net .wctl{transition:border-color .2s,box-shadow .2s}
+.net .wctl.hit{border-color:var(--signal);box-shadow:0 0 0 3px color-mix(in srgb,var(--signal) 28%,transparent)}
 .wctl{display:flex;align-items:stretch;height:30px;background:var(--card);border:1.5px solid var(--ink);border-radius:8px;overflow:hidden}
 .net .wctl{position:absolute;transform:translate(-50%,-50%)}
 .wctl label{width:22px;display:flex;align-items:center;justify-content:center;font-size:15px;background:var(--bg);border-right:1px solid var(--rule)}
@@ -562,6 +565,8 @@ td.empty{color:var(--rule)}
           <line class="edge" x1="36" y1="52" x2="176" y2="52"/><line class="edge" x1="36" y1="52" x2="176" y2="144"/>
           <line class="edge" x1="36" y1="144" x2="176" y2="52"/><line class="edge" x1="36" y1="144" x2="176" y2="144"/>
           <line class="edge" x1="176" y1="52" x2="312" y2="98"/><line class="edge" x1="176" y1="144" x2="312" y2="98"/>
+          <line class="trail" id="mf1"/><line class="trail" id="mf2"/><line class="trail" id="mf3"/>
+          <line class="trail" id="mf4"/><line class="trail" id="mf5"/><line class="trail" id="mf6"/>
           <circle class="pulse" id="mp1" r="5"/><circle class="pulse" id="mp2" r="5"/><circle class="pulse" id="mp3" r="5"/>
           <circle class="pulse" id="mp4" r="5"/><circle class="pulse" id="mp5" r="5"/><circle class="pulse" id="mp6" r="5"/>
           <text class="wlab ka" id="mw_h1_w1" x="106" y="46"></text>
@@ -692,10 +697,16 @@ td.empty{color:var(--rule)}
       requestAnimationFrame(frame);
     });
   }
-  function fly(el,x0,y0,x1,y1,ms,eng,id){
+
+  // 신호 점이 (x0,y0)→(x1,y1)로 이동하고, 지나간 자리에 (ox,oy)부터 빛나는 자취를 남긴다
+  function flow(el,tr,x0,y0,x1,y1,ms,eng,id,ox,oy){
+    if(tr){tr.setAttribute("x1",ox==null?x0:ox);tr.setAttribute("y1",oy==null?y0:oy);tr.setAttribute("x2",x0);tr.setAttribute("y2",y0);tr.style.opacity=.55;}
     el.style.opacity=reduce?0:1;
-    return tween(ms,eng,id,function(k){el.setAttribute("cx",x0+(x1-x0)*k);el.setAttribute("cy",y0+(y1-y0)*k);})
-      .then(function(){el.style.opacity=0;});
+    return tween(ms,eng,id,function(k){
+      var x=x0+(x1-x0)*k, y=y0+(y1-y0)*k;
+      el.setAttribute("cx",x);el.setAttribute("cy",y);
+      if(tr){tr.setAttribute("x2",x);tr.setAttribute("y2",y);}
+    }).then(function(){el.style.opacity=0;});
   }
 
   // ---------- 공통: 좌표평면 ----------
@@ -832,7 +843,8 @@ td.empty{color:var(--rule)}
       '<svg viewBox="0 0 360 212" aria-hidden="true">'+
       '<line class="edge" x1="30" y1="36" x2="236" y2="110"/><line class="edge" x1="30" y1="110" x2="236" y2="110"/>'+
       '<line class="edge" x1="30" y1="184" x2="236" y2="110"/><line class="edge" x1="236" y1="110" x2="342" y2="110"/>'+
-      '<circle class="pulse" id="'+pre+'p1" r="5"/><circle class="pulse" id="'+pre+'p2" r="5"/><circle class="pulse" id="'+pre+'p3" r="5"/><circle class="pulse" id="'+pre+'p4" r="5"/>'+
+      [1,2,3,4,5].map(function(n){return '<line class="trail" id="'+pre+'f'+n+'"/>';}).join("")+
+      '<circle class="pulse" id="'+pre+'p1" r="6"/><circle class="pulse" id="'+pre+'p2" r="6"/><circle class="pulse" id="'+pre+'p3" r="6"/><circle class="pulse" id="'+pre+'p4" r="6"/>'+
       '<text class="nlabel" x="30" y="13">입력</text><circle class="node" id="'+pre+'nX1" cx="30" cy="36" r="17"/><text class="ntext" id="'+pre+'tX1" x="30" y="36"></text>'+
       '<text class="nlabel" x="30" y="87">입력</text><circle class="node" id="'+pre+'nX2" cx="30" cy="110" r="17"/><text class="ntext" id="'+pre+'tX2" x="30" y="110"></text>'+
       '<text class="nlabel" x="30" y="161">편향</text><circle class="node" id="'+pre+'nB" cx="30" cy="184" r="17"/><text class="ntext" x="30" y="184">1</text>'+
@@ -849,6 +861,8 @@ td.empty{color:var(--rule)}
     $(pre+"tSum").innerHTML="Σ"; $(pre+"tSum").setAttribute("font-size","20");
     $(pre+"tOut").innerHTML=""; $(pre+"tOut").classList.remove("inv");
     ["p1","p2","p3","p4"].forEach(function(id){$(pre+id).style.opacity=0;});
+    ["f1","f2","f3","f4","f5"].forEach(function(id){$(pre+id).style.opacity=0;});
+    $(pre+"Net").querySelectorAll(".wctl").forEach(function(el){el.classList.remove("hit");});
   }
   function showSum(pre,z){var s=num(z); $(pre+"tSum").innerHTML=s; $(pre+"tSum").setAttribute("font-size",s.length>4?"12":"14"); $(pre+"nSum").classList.add("lit");}
   function showOut(pre,y){$(pre+"nOut").classList.remove("on","off"); $(pre+"nOut").classList.add(y?"on":"off"); $(pre+"tOut").innerHTML=String(y); $(pre+"tOut").classList.add("inv");}
@@ -947,25 +961,32 @@ td.empty{color:var(--rule)}
     var a=CASES[i][0], b=CASES[i][1], g=GATES[A.gate], p=A.p;
     A.cur=i; A.zShow=null; resetNet("a"); aRenderStep(); aRenderTable(); aRenderPlane();
     $("atX1").innerHTML=String(a); $("atX2").innerHTML=String(b);
-    ["anX1","anX2","anB"].forEach(function(n){$(n).classList.add("lit");});
+    ["anX1","anX2"].forEach(function(n){$(n).classList.add("lit");});
     cap("aCaption",'입력 ('+X1+', '+X2+') = ('+a+', '+b+')');
     await sleep(700,A,id);
     var expr=Z+' = '+par(p.w1)+'×'+a+' + '+par(p.w2)+'×'+b+' + '+par(p.b);
     cap("aCaption",expr);
-    await Promise.all([fly($("ap1"),30,36,236,110,750,A,id),fly($("ap2"),30,110,236,110,750,A,id),fly($("ap3"),30,184,236,110,750,A,id)]);
+    // 입력·편향 → 가중치 조절기 → 가중합
+    var SRC=[[30,36],[30,110],[30,184]], WX=122, ctls=$("aNet").querySelectorAll(".wctl");
+    var WY=SRC.map(function(q){return q[1]+(110-q[1])*(WX-30)/206;});
+    await Promise.all(SRC.map(function(q,j){return flow($("ap"+(j+1)),$("af"+(j+1)),q[0],q[1],WX,WY[j],450,A,id);}));
+    ctls.forEach(function(el){el.classList.add("hit");});
+    await sleep(320,A,id);
+    await Promise.all(SRC.map(function(q,j){return flow($("ap"+(j+1)),$("af"+(j+1)),WX,WY[j],236,110,450,A,id,q[0],q[1]);}));
+    ctls.forEach(function(el){el.classList.remove("hit");});
     var z=zOf(p,a,b), y=step01(z);
     showSum("a",z);
     cap("aCaption",expr+' = <b>'+num(z)+'</b>');
     A.zShow={i:i,z:z,stage:"axis"}; aRenderStep(); aRenderPlane();
     await sleep(1100,A,id);
-    await fly($("ap4"),236,110,296,110,280,A,id);
+    await flow($("ap4"),$("af4"),236,110,296,110,320,A,id);
     $("anAct").classList.add("lit");
     if(y){
       var cd=$("aCurDot"), cl=$("aCurLab");
       await tween(380,A,id,function(k){var cy=SY0+(SY1-SY0)*k; cd.setAttribute("cy",cy); cl.setAttribute("y",cy-9);});
     }
     A.zShow.stage="graph"; aRenderStep();
-    await fly($("ap4"),296,110,342,110,240,A,id);
+    await flow($("ap4"),$("af5"),296,110,342,110,280,A,id);
     showOut("a",y);
     cap("aCaption",Z+' = '+num(z)+(y?' ≥ 0':' &lt; 0')+' 이므로 '+V("f")+'('+Z+') = <b>'+y+'</b>');
     await sleep(1000,A,id);
@@ -1084,7 +1105,7 @@ td.empty{color:var(--rule)}
     var s=trainStep(p,a,b,t,eta);
     L.cur=i; L.ghost=null; lResetNet(); lZoom(halfFor([L.p]),900);
     $("ltX1").innerHTML=String(a); $("ltX2").innerHTML=String(b);
-    ["lnX1","lnX2","lnB"].forEach(function(n){$(n).classList.add("lit");});
+    ["lnX1","lnX2"].forEach(function(n){$(n).classList.add("lit");});
     $("ltT").innerHTML=String(t);
     var lines=['<div class="hd">'+L.epoch+'바퀴 · 입력 ('+a+', '+b+') · 목표 '+V("t")+' = '+t+'</div>'];
     lines.push('<div>'+Z+' = '+par(p.w1)+'×'+a+' + '+par(p.w2)+'×'+b+' + '+par(p.b)+' = <b>'+num(s.z)+'</b> → '+V("y")+' = <b>'+s.y+'</b></div>');
@@ -1173,7 +1194,7 @@ td.empty{color:var(--rule)}
     $("mtX1").innerHTML=tsub("x","1"); $("mtX2").innerHTML=tsub("x","2");
     $("mtH1").innerHTML=tsub("h","1"); $("mtH2").innerHTML=tsub("h","2"); $("mtO").innerHTML='<tspan class="m">y</tspan>';
     ["mtH1","mtH2","mtO"].forEach(function(id){$(id).classList.remove("inv");});
-    for(var i=1;i<=6;i++) $("mp"+i).style.opacity=0;
+    for(var i=1;i<=6;i++){$("mp"+i).style.opacity=0; $("mf"+i).style.opacity=0;}
   }
   function mSetNode(nid,tid,v){$(nid).classList.remove("on","off"); $(nid).classList.add(v?"on":"off"); $(tid).innerHTML=String(v); $(tid).classList.add("inv");}
   function mRenderEditor(){
@@ -1261,13 +1282,13 @@ td.empty{color:var(--rule)}
     $("mnX1").classList.add("lit"); $("mnX2").classList.add("lit");
     cap("mCaption",'입력 ('+X1+', '+X2+') = ('+a+', '+b+')');
     await sleep(650,M,id);
-    await Promise.all([fly($("mp1"),36,52,176,52,700,M,id),fly($("mp2"),36,52,176,144,700,M,id),fly($("mp3"),36,144,176,52,700,M,id),fly($("mp4"),36,144,176,144,700,M,id)]);
+    await Promise.all([flow($("mp1"),$("mf1"),36,52,176,52,700,M,id),flow($("mp2"),$("mf2"),36,52,176,144,700,M,id),flow($("mp3"),$("mf3"),36,144,176,52,700,M,id),flow($("mp4"),$("mf4"),36,144,176,144,700,M,id)]);
     mSetNode("mnH1","mtH1",f.h1); mSetNode("mnH2","mtH2",f.h2);
     M.zShow={i:i,f:f,stage:1}; mRenderSteps();
     cap("mCaption",H1+': '+par(n.h1.w1)+'×'+a+' + '+par(n.h1.w2)+'×'+b+' + '+par(n.h1.b)+' = '+num(f.z1)+' → <b>'+f.h1+'</b><br>'+
                    H2+': '+par(n.h2.w1)+'×'+a+' + '+par(n.h2.w2)+'×'+b+' + '+par(n.h2.b)+' = '+num(f.z2)+' → <b>'+f.h2+'</b>');
     await sleep(1300,M,id);
-    await Promise.all([fly($("mp5"),176,52,312,98,600,M,id),fly($("mp6"),176,144,312,98,600,M,id)]);
+    await Promise.all([flow($("mp5"),$("mf5"),176,52,312,98,600,M,id),flow($("mp6"),$("mf6"),176,144,312,98,600,M,id)]);
     mSetNode("mnO","mtO",f.y);
     M.zShow.stage=2; mRenderSteps();
     cap("mCaption",V("y")+': '+par(n.o.w1)+'×'+f.h1+' + '+par(n.o.w2)+'×'+f.h2+' + '+par(n.o.b)+' = '+num(f.zo)+' → <b>'+f.y+'</b>');
